@@ -28,7 +28,7 @@ To run this project locally:
 
 2.  **Clone the Repository:**
     ```bash
-    git clone [<repository_url>](https://github.com/0xdevar/0xFSM.git)
+    git clone https://github.com/0xdevar/0xFSM.git
     cd 0xFSM
     ```
 
