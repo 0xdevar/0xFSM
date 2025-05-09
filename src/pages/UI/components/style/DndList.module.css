@@ -1,0 +1,75 @@
+.item {
+  /* Core layout */
+  display: flex;
+  align-items: center; /* Vertically center content */
+  gap: var(--mantine-spacing-sm); /* Spacing between flex children */
+
+  /* Styling from your example */
+  border-radius: 20px;
+  border: 1px solid light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4)); /* Adjusted border color slightly */
+  padding: var(--mantine-spacing-sm) var(--mantine-spacing-md); /* Adjusted padding slightly */
+  background-color: #212124a1; /* Adjusted background slightly */
+  margin-bottom: var(--mantine-spacing-sm); /* Keep margin */
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease; /* Added transitions */
+}
+
+.itemDragging {
+  box-shadow: var(--mantine-shadow-md); /* Use medium shadow for more visibility */
+  border-color: var(--mantine-color-blue-6); /* Optional: Highlight border */
+  /* background-color: light-dark(var(--mantine-color-gray-0), var(--mantine-color-dark-5)); Optional: Slightly lighter background */
+}
+
+/* Style for the dedicated drag handle element */
+.dragHandle {
+  display: flex; /* Center the icon */
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0; /* Prevent shrinking */
+  cursor: grab;
+  /* padding: 0 var(--mantine-spacing-xs); Remove padding if using icon only */
+  color: light-dark(var(--mantine-color-gray-6), var(--mantine-color-dark-2)); /* Handle color */
+  
+  transition: color 0.2s ease;
+  
+}
+
+.dragHandle:hover {
+    color: light-dark(var(--mantine-color-gray-8), var(--mantine-color-dark-0));
+}
+
+/* Change cursor when dragging */
+.itemDragging .dragHandle {
+    cursor: grabbing;
+}
+
+/*
+   Remove .symbol class unless you specifically apply it to an element
+   inside the .item container in the JS. The current structure places the icon,
+   text, and actions as direct children or nested in standard divs/groups.
+*/
+/*
+.symbol {
+  font-size: 30px;
+  font-weight: 700;
+  width: 60px;
+}
+*/
+
+.iconPlaceholder {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #444;
+  border-radius: 4px;
+  color: #aaa;
+  font-size: 10px;
+}
+
+.nodeDetails {
+  flex-grow: 1;
+  overflow: hidden;
+  margin-right: var(--mantine-spacing-sm);
+}
+

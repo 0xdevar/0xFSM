@@ -1,0 +1,40 @@
+.fileItem {
+    border-radius: var(--mantine-radius-sm);
+    cursor: pointer;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    /* Default background is set inline based on selection */
+    /* Default border is set inline based on selection */
+}
+
+/* Hover effect for non-selected items */
+.fileItem:not([style*="border-color: transparent"]) { /* Target only non-selected items based on border */
+   /* Add specific selection indicator if needed */
+}
+.fileItem:hover:not([style*="border-color: transparent"]) { /* This attempts to select non-selected items, might be tricky with inline styles */
+    /* background-color: #373A40; */ /* Use var(--mantine-color-dark-5) or similar */
+}
+/* A potentially more reliable way if background is used for selection state */
+.fileItem:hover:not([style*="background-color: rgb(59, 91, 219)"]):not([style*="background-color: rgb(217, 168, 0)"]) { /* Check against compiled color values */
+   background-color: #373A40 !important; /* Use !important carefully if needed to override inline style */
+}
+
+
+/* Delete Button Styling */
+.deleteButton {
+    opacity: 0; /* Initially hidden */
+    transition: opacity 0.2s ease, background-color 0.2s ease;
+}
+
+/* Show delete button when hovering over the entire .fileItem */
+.fileItem:hover .deleteButton {
+    opacity: 0.6;
+}
+
+/* Increase opacity and add background on direct hover over the button */
+.deleteButton:hover {
+    opacity: 1;
+    background-color: rgba(255, 87, 87, 0.1); /* Subtle red background */
+}
