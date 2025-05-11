@@ -39,19 +39,12 @@ To run this project locally:
     ```bash
     npm install
     ```
-    Or using yarn:
-    ```bash
-    yarn install
     ```
 
 4.  **Run the Development Server:**
     Using npm:
     ```bash
     npm run dev  # Or `npm start` if configured in package.json
-    ```
-    Or using yarn:
-    ```bash
-    yarn dev     # Or `yarn start`
     ```
     This will typically start the application on `http://localhost:3000` or a similar port. Open this URL in your web browser.
 
