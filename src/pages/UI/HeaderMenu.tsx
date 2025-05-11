@@ -2,7 +2,8 @@ import {
   IconChevronDown,
   IconDeviceFloppy,
   IconFolderOpen,
-  IconCode
+  IconCode,
+  IconCoffee
 } from '@tabler/icons-react' // Added IconCode for Generate
 import {
   Burger,
@@ -76,6 +77,7 @@ export function HeaderMenu ({
         }
 
         return (
+          
           <Menu.Item
             key={item.id}
             leftSection={<item.icon size={14} stroke={1.5} />} // Render icon
@@ -129,6 +131,7 @@ export function HeaderMenu ({
   return (
     <header className={classes.header}>
       <Container size='lg'>
+        
         {' '}
         <div className={classes.inner}>
           {' '}
@@ -137,6 +140,9 @@ export function HeaderMenu ({
               0xFSM
             </Text>
             <Code fw={700}>v1.0.0</Code>
+            <Button variant='gradient' gradient={{ from: 'pink', to: 'green' }} onClick={() => window.open('https://ko-fi.com/ahmedbero', '_blank')} leftSection={<IconCoffee size={16} stroke={1.5} />} visibleFrom='sm' >
+              Support Me
+            </Button>
           </Group>
           <Group gap={5} visibleFrom='sm' className={classes.links}>
             {items}
@@ -160,8 +166,10 @@ export function HeaderMenu ({
               hiddenFrom='sm'
               aria-label='Toggle navigation'
             />
+         
           </Group>
         </div>
+        
       </Container>
     </header>
   )
