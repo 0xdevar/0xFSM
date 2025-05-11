@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Modal,
@@ -19,7 +20,8 @@ import {
   Divider,
   Paper,
   Alert,
-  Grid
+  Grid,
+  ComboboxItem
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import {
@@ -79,6 +81,10 @@ interface NodeEditorModalProps {
   node: { node: DraggableNode; index: number } | null
   currentGraphScope?: FunctionScope | EventScope
 }
+
+// Define the specific data types for a variable node
+type VariableDataType = 'string' | 'number' | 'boolean' | 'variable' | 'nil';
+
 
 const ValidatedTextInput = ({
   field,
@@ -302,13 +308,13 @@ export default function NodeEditorModal ({
         // --- EXISTING CASES ---
         // ... (all existing cases for print, math, variable, etc. remain unchanged) ...
         case 'registerCommand':
-          /* ... */ initialData.commandName =
+           initialData.commandName =
             initialData.commandName || 'mycommand'
           initialData.functionName = initialData.functionName || ''
           initialData.restricted = initialData.restricted ?? false
           break
         case 'callFunction':
-          /* ... */ initialData.functionName = initialData.functionName || ''
+           initialData.functionName = initialData.functionName || ''
           initialData.resultVariable =
             initialData.resultVariable || 'functionResult'
           const targetParams =
@@ -326,14 +332,14 @@ export default function NodeEditorModal ({
           }
           break
         case 'return':
-          /* ... */ initialData.useVariableForResult =
+           initialData.useVariableForResult =
             initialData.useVariableForResult ?? true
           initialData.returnVariable = initialData.returnVariable || ''
           initialData.returnValue = initialData.returnValue ?? ''
           break
         case 'ifCondition':
         case 'whileCondition':
-          /* ... */ initialData.conditionLhsType =
+           initialData.conditionLhsType =
             initialData.conditionLhsType ?? 'variable'
           initialData.conditionLhsValue = initialData.conditionLhsValue ?? ''
           initialData.conditionOperator = initialData.conditionOperator ?? '=='
@@ -343,7 +349,7 @@ export default function NodeEditorModal ({
             initialData.conditionRhsValue ?? 'true'
           break
         case 'forLoopNumeric':
-          /* ... */ initialData.controlVariable =
+           initialData.controlVariable =
             initialData.controlVariable || 'i'
           initialData.startValueType = initialData.startValueType || 'literal'
           initialData.startValue = initialData.startValue ?? '1'
@@ -353,7 +359,7 @@ export default function NodeEditorModal ({
           initialData.stepValue = initialData.stepValue ?? '1'
           break
         case 'print':
-          /* ... */ initialData.useVariableForMessage =
+           initialData.useVariableForMessage =
             initialData.useVariableForMessage ?? false
           initialData.messageVariable = initialData.messageVariable || ''
           initialData.message = initialData.message ?? 'Hello World'
@@ -361,7 +367,7 @@ export default function NodeEditorModal ({
           initialData.color = initialData.color || '#ffffff'
           break
         case 'math':
-          /* ... */ initialData.operation = initialData.operation || 'add'
+           initialData.operation = initialData.operation || 'add'
           initialData.useVariableForValue1 =
             initialData.useVariableForValue1 ?? false
           initialData.value1Variable = initialData.value1Variable || ''
@@ -374,20 +380,20 @@ export default function NodeEditorModal ({
             initialData.resultVariable || 'mathResult'
           break
         case 'variable':
-          /* ... */ initialData.name = initialData.name || 'myVar'
+          initialData.name = initialData.name || 'myVar'
           initialData.varType = initialData.varType || 'local'
-          initialData.dataType = initialData.dataType || 'string'
+          initialData.dataType = (initialData.dataType || 'string') as VariableDataType;
           initialData.value = parseLiteral(
-            initialData.value,
-            initialData.dataType
+          initialData.value,
+          initialData.dataType
           )
           break
         case 'readVariable':
-          /* ... */ initialData.variableName = initialData.variableName || ''
+           initialData.variableName = initialData.variableName || ''
           initialData.defaultValue = initialData.defaultValue ?? ''
           break
         case 'concatStrings':
-          /* ... */ initialData.useVariableForString1 =
+           initialData.useVariableForString1 =
             initialData.useVariableForString1 ?? false
           initialData.string1Variable = initialData.string1Variable || ''
           initialData.string1 = initialData.string1 ?? ''
@@ -399,22 +405,22 @@ export default function NodeEditorModal ({
             initialData.resultVariable || 'concatResult'
           break
         case 'wait':
-          /* ... */ initialData.useVariableForDuration =
+           initialData.useVariableForDuration =
             initialData.useVariableForDuration ?? false
           initialData.durationVariable = initialData.durationVariable || ''
           initialData.duration = initialData.duration ?? 1000
           break
         case 'triggerServerEvent':
-          /* ... */ initialData.eventName = initialData.eventName || ''
+           initialData.eventName = initialData.eventName || ''
           break
         case 'triggerClientEvent':
-          /* ... */ initialData.eventName = initialData.eventName || ''
+           initialData.eventName = initialData.eventName || ''
           initialData.targetPlayer = initialData.targetPlayer ?? '-1'
           initialData.useVariableForTarget =
             initialData.useVariableForTarget ?? false
           break
         case 'forLoopGeneric':
-          /* ... */ initialData.tableVariable =
+           initialData.tableVariable =
             initialData.tableVariable || 'myTable'
           initialData.iterationType = initialData.iterationType || 'pairs'
           initialData.keyVariable =
@@ -423,11 +429,11 @@ export default function NodeEditorModal ({
           initialData.valueVariable = initialData.valueVariable || 'value'
           break
         case 'createTable':
-          /* ... */ initialData.variableName =
+           initialData.variableName =
             initialData.variableName || 'newTable'
           break
         case 'setTableValue':
-          /* ... */ initialData.tableVariable =
+           initialData.tableVariable =
             initialData.tableVariable || 'myTable'
           initialData.keyType = initialData.keyType || 'literal'
           initialData.keyValue = initialData.keyValue ?? 'myKey'
@@ -435,7 +441,7 @@ export default function NodeEditorModal ({
           initialData.valueSource = initialData.valueSource ?? ''
           break
         case 'getTableValue':
-          /* ... */ initialData.tableVariable =
+           initialData.tableVariable =
             initialData.tableVariable || 'myTable'
           initialData.keyType = initialData.keyType || 'literal'
           initialData.keyValue = initialData.keyValue ?? 'myKey'
@@ -444,12 +450,12 @@ export default function NodeEditorModal ({
           initialData.defaultValue = initialData.defaultValue ?? ''
           break
         case 'callNative':
-          /* ... */ initialData.nativeNameOrHash =
+           initialData.nativeNameOrHash =
             initialData.nativeNameOrHash || ''
           initialData.resultVariable = initialData.resultVariable || ''
           break
         case 'vector3':
-          /* ... */ initialData.useVariableForX =
+           initialData.useVariableForX =
             initialData.useVariableForX ?? false
           initialData.xSource = initialData.xSource ?? '0.0'
           initialData.useVariableForY = initialData.useVariableForY ?? false
@@ -459,30 +465,30 @@ export default function NodeEditorModal ({
           initialData.resultVariable = initialData.resultVariable || 'myVector'
           break
         case 'json':
-          /* ... */ initialData.jsonOperation =
+           initialData.jsonOperation =
             initialData.jsonOperation || 'encode'
           initialData.inputVariable = initialData.inputVariable || 'inputData'
           initialData.resultVariable = initialData.resultVariable || 'jsonData'
           break
         case 'insertIntoTable':
-          /* ... */ initialData.tableVariable =
+           initialData.tableVariable =
             initialData.tableVariable || 'myTable'
           initialData.valueType = initialData.valueType || 'literal'
           initialData.valueSource = initialData.valueSource ?? ''
           break
         case 'getTableLength':
-          /* ... */ initialData.tableVariable =
+           initialData.tableVariable =
             initialData.tableVariable || 'myTable'
           initialData.resultVariable =
             initialData.resultVariable || 'tableLength'
           break
         case 'stringFormat':
-          /* ... */ initialData.formatString = initialData.formatString || ''
+           initialData.formatString = initialData.formatString || ''
           initialData.resultVariable =
             initialData.resultVariable || 'formattedString'
           break
         case 'stringSplit':
-          /* ... */ initialData.useVariableForInput =
+           initialData.useVariableForInput =
             initialData.useVariableForInput ?? false
           initialData.inputStringVariable =
             initialData.inputStringVariable || ''
@@ -495,7 +501,7 @@ export default function NodeEditorModal ({
         case 'typeCheck':
         case 'toString':
         case 'toNumber':
-          /* ... */ initialData.useVariableForInput =
+           initialData.useVariableForInput =
             initialData.useVariableForInput ?? true
           initialData.inputVariable = initialData.inputVariable || ''
           initialData.inputValue = initialData.inputValue ?? ''
@@ -511,7 +517,7 @@ export default function NodeEditorModal ({
           }
           break
         case 'stringSubstring':
-          /* ... */ initialData.useVariableForInput =
+           initialData.useVariableForInput =
             initialData.useVariableForInput ?? false
           initialData.inputStringVariable =
             initialData.inputStringVariable || ''
@@ -524,7 +530,7 @@ export default function NodeEditorModal ({
             initialData.resultVariable || 'substringResult'
           break
         case 'stringLength':
-          /* ... */ initialData.useVariableForInput =
+           initialData.useVariableForInput =
             initialData.useVariableForInput ?? false
           initialData.inputStringVariable =
             initialData.inputStringVariable || ''
@@ -533,7 +539,7 @@ export default function NodeEditorModal ({
             initialData.resultVariable || 'stringLengthResult'
           break
         case 'stringFind':
-          /* ... */ initialData.useVariableForHaystack =
+           initialData.useVariableForHaystack =
             initialData.useVariableForHaystack ?? false
           initialData.haystackVariable = initialData.haystackVariable || ''
           initialData.haystackString = initialData.haystackString ?? ''
@@ -549,7 +555,7 @@ export default function NodeEditorModal ({
           initialData.resultEndIndexVar = initialData.resultEndIndexVar || ''
           break
         case 'stringReplace':
-          /* ... */ initialData.useVariableForInput =
+           initialData.useVariableForInput =
             initialData.useVariableForInput ?? false
           initialData.inputStringVariable =
             initialData.inputStringVariable || ''
@@ -571,7 +577,7 @@ export default function NodeEditorModal ({
             initialData.resultCountVariable || ''
           break
         case 'stringCase':
-          /* ... */ initialData.useVariableForInput =
+           initialData.useVariableForInput =
             initialData.useVariableForInput ?? false
           initialData.inputStringVariable =
             initialData.inputStringVariable || ''
@@ -581,7 +587,7 @@ export default function NodeEditorModal ({
             initialData.resultVariable || 'casedString'
           break
         case 'mathAdvanced':
-          /* ... */ initialData.mathOperationType =
+           initialData.mathOperationType =
             initialData.mathOperationType || 'floor'
           initialData.value1Type = initialData.value1Type || 'literal'
           initialData.value1 = initialData.value1 ?? '0'
@@ -593,7 +599,7 @@ export default function NodeEditorModal ({
             initialData.resultVariable || 'mathAdvResult'
           break
         case 'tableRemove':
-          /* ... */ initialData.tableVariable =
+           initialData.tableVariable =
             initialData.tableVariable || 'myTable'
           initialData.indexType = initialData.indexType || 'literal'
           initialData.index = initialData.index ?? ''
@@ -601,7 +607,7 @@ export default function NodeEditorModal ({
             initialData.resultRemovedValueVar || ''
           break
         case 'tableSort':
-          /* ... */ initialData.tableVariable =
+           initialData.tableVariable =
             initialData.tableVariable || 'myTable'
           initialData.sortFunctionType = initialData.sortFunctionType || 'none'
           initialData.sortFunctionVariable =
@@ -1091,7 +1097,7 @@ export default function NodeEditorModal ({
 
   const handleChange = useCallback(
     (field: keyof DraggableNode, value: any) => {
-      /* ... no changes ... */ setNodeData(prev => {
+      setNodeData(prev => {
         if (!prev) return null
         let updatedValue = value
         if (prev.id === 'variable') {
@@ -1100,10 +1106,10 @@ export default function NodeEditorModal ({
             if (value === 'number') defaultValue = 0
             else if (value === 'boolean') defaultValue = false
             else if (value === 'nil') defaultValue = null
-            else if (value === 'variable') defaultValue = ''
-            return { ...prev, dataType: value, value: defaultValue }
+            else if (value === 'variable') defaultValue = '' //
+            return { ...prev, dataType: value as VariableDataType, value: defaultValue }
           } else if (field === 'value') {
-            updatedValue = parseLiteral(value, prev.dataType)
+            updatedValue = parseLiteral(value, prev.dataType as VariableDataType)
             return { ...prev, value: updatedValue }
           }
           if (field === 'varType') {
@@ -1289,14 +1295,26 @@ export default function NodeEditorModal ({
       field: keyof ArgumentSource,
       value: ArgumentSource['type'] | ArgumentSource['value']
     ) => {
-      /* ... no changes ... */ setNodeData(prev => {
+      setNodeData(prev => {
         if (!prev || !Array.isArray(prev.argumentSources)) return prev
         const newArgs = [...prev.argumentSources]
         if (index >= 0 && index < newArgs.length) {
           const currentArg = { ...newArgs[index] }
-          currentArg[field] = value
+          
           if (field === 'type') {
-            currentArg.value = ''
+             // Ensure value is one of the allowed types for ArgumentSource['type']
+            if (value === 'literal' || value === 'variable') {
+              currentArg.type = value;
+              currentArg.value = ''; // Reset value when type changes
+            } else {
+              // Handle unexpected value, perhaps log an error or default
+              console.warn(`Invalid value for ArgumentSource type: ${value}`);
+              // Optionally default to 'literal' or skip update
+              currentArg.type = 'literal'; 
+              currentArg.value = '';
+            }
+          } else {
+             currentArg[field] = value as string; // Assuming value is always string for 'value' field
           }
           newArgs[index] = currentArg
           return { ...prev, argumentSources: newArgs }
@@ -1463,14 +1481,22 @@ export default function NodeEditorModal ({
               }
               data={[
                 {
-                  label: 'F8 Console',
+                  label: (
+                    <Group gap="xs" wrap="nowrap" justify="center">
+                      <IconMessageCircle size="1rem" stroke={1.5} />
+                      <span>F8 Console</span>
+                    </Group>
+                  ),
                   value: 'console',
-                  icon: IconMessageCircle
                 },
                 {
-                  label: 'Chat (Simulated)',
+                  label: (
+                    <Group gap="xs" wrap="nowrap" justify="center">
+                      <IconMessageChatbot size="1rem" stroke={1.5} />
+                      <span>Chat (Simulated)</span>
+                    </Group>
+                  ),
                   value: 'chat',
-                  icon: IconMessageChatbot
                 }
               ]}
             />{' '}
@@ -1580,7 +1606,7 @@ export default function NodeEditorModal ({
                 { value: 'nil', label: 'Nil' }
               ]}
               value={nodeData.dataType ?? 'string'}
-              onChange={value => handleChange('dataType', value)}
+              onChange={value => handleChange('dataType', value as VariableDataType)}
               allowDeselect={false}
             />{' '}
             {nodeData.dataType === 'string' && (
@@ -3066,7 +3092,6 @@ export default function NodeEditorModal ({
           'random'
         ].includes(opType)
         const needsVal2 = ['pow', 'min', 'max', 'random'].includes(opType)
-        const isRandomNoArgs = opType === 'random' && !needsVal1 && !needsVal2
         return (
           <Stack gap='lg'>
             {' '}
@@ -3782,13 +3807,11 @@ export default function NodeEditorModal ({
                               { value: 'variable', label: 'Variable' }
                             ]}
                             value={arg.type}
-                            onChange={value =>
-                              handleArgChange(
-                                index,
-                                'type',
-                                value as ArgumentSource['type']
-                              )
-                            }
+                            onChange={(newValue: string | null, _option: ComboboxItem) => {
+                              if (newValue === 'literal' || newValue === 'variable') {
+                                handleArgChange(index, 'type', newValue);
+                              }
+                            }}
                             size='xs'
                             allowDeselect={false}
                           />

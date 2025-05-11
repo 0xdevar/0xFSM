@@ -1,7 +1,7 @@
+
 import {
   NodeDefinition,
   DraggableNode,
-  ArgumentSource
 } from './types/NodeDefinition'
 import {
   FUNC_PREFIX,
@@ -10,6 +10,7 @@ import {
   FunctionScope,
   EventScope
 } from '../pages/UI/GraphContext'
+import { isValidLuaIdentifier } from './nodes/utils/validationUtils'; 
 
 // Interface for ManifestSettings (passed from CodeGenerationModal)
 interface ManifestSettings {
@@ -1001,7 +1002,7 @@ export class CodeGeneratorService {
         if (
           !value ||
           typeof value !== 'string' ||
-          !isValidLuaIdentifier(value)
+          !isValidLuaIdentifier(value) // Make sure isValidLuaIdentifier is available
         ) {
           luaValue = 'nil --[[ ERROR: Invalid source variable name ]]'
         } else {
@@ -1450,7 +1451,7 @@ export class CodeGeneratorService {
     const inputVar = node.inputStringVariable
     const inputLiteral = node.inputString
     const separator = this.formatLiteralForLua(node.separator || '')
-    const limitStr = node.limit?.trim()
+    const limitStr = String(node.limit ?? '').trim(); // Ensure limit is string before trim
     let limitVal = 'nil'
     if (limitStr && limitStr !== '') {
       const parsedLimit = parseInt(limitStr, 10)
@@ -1523,7 +1524,7 @@ export class CodeGeneratorService {
     const useVar = node.useVariableForInput ?? true
     const inputVar = node.inputVariable
     const inputLiteral = node.inputValue
-    const baseStr = node.base?.trim()
+    const baseStr = String(node.base ?? '').trim(); // Ensure base is string before trim
     let baseVal = ''
     if (baseStr && baseStr !== '') {
       const parsedBase = parseInt(baseStr, 10)
@@ -1562,11 +1563,11 @@ export class CodeGeneratorService {
     else inputExpression = this.formatLiteralForLua(inputLiteral)
     const getIndexExpr = (
       type?: 'literal' | 'variable',
-      value?: string,
+      value?: string | number,
       defaultVal = '1'
     ): string => {
-      if (type === 'variable') return `tonumber(${value || '0'})`
-      return String(Number(value) || defaultVal)
+      if (type === 'variable') return `tonumber(${value || '0'})` // value here is var name (string)
+      return String(Number(value) || defaultVal) // value here is literal (string or number from input)
     }
     const startExpr = getIndexExpr(node.startIndexType, node.startIndex, '1')
     const endExpr = getIndexExpr(node.endIndexType, node.endIndex, '')
@@ -1622,10 +1623,10 @@ export class CodeGeneratorService {
     else needleExpr = this.formatLiteralForLua(needleLiteral)
     const getIndexExpr = (
       type?: 'literal' | 'variable',
-      value?: string
+      value?: string | number
     ): string => {
-      if (type === 'variable') return `tonumber(${value || '1'})`
-      return String(Number(value) || 1)
+      if (type === 'variable') return `tonumber(${value || '1'})` // value here is var name (string)
+      return String(Number(value) || 1) // value here is literal (string or number from input)
     }
     const startIdxExpr = getIndexExpr(node.startIndexType, node.startIndex)
     const plainFindExpr = node.plainFind ? 'true' : 'false'
@@ -1670,11 +1671,12 @@ export class CodeGeneratorService {
     else replExpr = this.formatLiteralForLua(replLiteral)
     const getLimitExpr = (
       type?: 'literal' | 'variable',
-      value?: string
+      value?: string | number | ''
     ): string | undefined => {
-      if (!value || value.trim() === '') return undefined
-      if (type === 'variable') return `tonumber(${value || 'nil'})`
-      const num = parseInt(value.trim(), 10)
+      const sValue = String(value ?? '').trim();
+      if (!sValue) return undefined
+      if (type === 'variable') return `tonumber(${sValue || 'nil'})` // sValue is var name
+      const num = parseInt(sValue, 10) // sValue is literal
       return !isNaN(num) && num > 0 ? String(num) : undefined
     }
     const limitExpr = getLimitExpr(node.limitType, node.limit)
@@ -1731,7 +1733,7 @@ export class CodeGeneratorService {
     const opType = node.mathOperationType || 'floor'
     const getValueExpr = (
       type?: 'literal' | 'variable',
-      value?: string,
+      value?: string | number, // value can be string or number from input
       varName?: string
     ): string => {
       if (type === 'variable') return `tonumber(${varName || '0'})`
@@ -1756,8 +1758,8 @@ export class CodeGeneratorService {
         break
       case 'random':
         const isRange =
-          (node.value1 && node.value1.trim() !== '') ||
-          (node.value2 && node.value2.trim() !== '')
+          (node.value1 && String(node.value1).trim() !== '') ||
+          (node.value2 && String(node.value2).trim() !== '')
         expr = `math.random(${isRange ? `${val1Expr}, ${val2Expr}` : ''})`
         break
       case 'floor':
@@ -1778,8 +1780,8 @@ export class CodeGeneratorService {
     const tableVar = node.tableVariable || 'nil --[[ ERROR: Missing Table ]]'
     const indexExpr =
       node.indexType === 'variable'
-        ? `tonumber(${node.index || 'nil'})`
-        : node.index && node.index.trim() !== ''
+        ? `tonumber(${node.index || 'nil'})` // node.index here is var name (string)
+        : node.index && String(node.index).trim() !== '' // node.index here is literal (string or number)
         ? String(Number(node.index || 0))
         : ''
     const resultVar = node.resultRemovedValueVar?.trim()
