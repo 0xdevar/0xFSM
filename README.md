@@ -2,6 +2,8 @@
 
 **0xFSM** is a web-based tool to visually create FiveM Lua scripts and resource manifests. Drag, drop, and generate your FiveM resource without writing complex Lua from scratch!
 
+[TRY IT NOW!!](https://fsm.0xar.dev/)
+
 ![Screenshot](demo/image1.png)
 
 ## Key Features
