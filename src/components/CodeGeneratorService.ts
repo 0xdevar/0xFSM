@@ -2,14 +2,14 @@ import {
   NodeDefinition,
   DraggableNode,
   ArgumentSource
-} from '../../components/types/NodeDefinition'
+} from './types/NodeDefinition'
 import {
   FUNC_PREFIX,
   EVENT_PREFIX,
   GraphData,
   FunctionScope,
   EventScope
-} from '../../pages/UI/GraphContext'
+} from '../pages/UI/GraphContext'
 
 // Interface for ManifestSettings (passed from CodeGenerationModal)
 interface ManifestSettings {

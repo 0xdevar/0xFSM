@@ -16,7 +16,7 @@ import {
 import { notifications } from '@mantine/notifications'
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
-import { CodeGeneratorService } from '../CodeGeneratorService'
+import { CodeGeneratorService } from '../../../components/CodeGeneratorService'
 import { GraphData, FunctionScope, EventScope } from '../GraphContext'
 import { AppFile } from '../../../App'
 
