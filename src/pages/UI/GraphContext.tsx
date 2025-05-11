@@ -246,8 +246,9 @@ export const GraphProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteGraph = useCallback((graphKey: string) => {
     setGraphs(prev => {
-      const { [graphKey]: _, ...rest } = prev
-      return rest
+      const newGraphs = { ...prev };
+      delete newGraphs[graphKey];
+      return newGraphs;
     })
     console.log('GraphContext: Setting dirty flag (deleteGraph)')
     setIsDirty(true) // <<< SET DIRTY
@@ -348,8 +349,8 @@ export const GraphProvider = ({ children }: { children: ReactNode }) => {
 
               // Important: savedNode should only contain ID and configurable properties.
               // Properties like leftSection, execute, category, etc., should come from nodeDefinitionFromRegistry.
-              const nodeSpecificSavedProps = { ...savedNode };
-              delete nodeSpecificSavedProps.id; // id is for lookup, not for spreading over definition's id
+              const nodeSpecificSavedProps = { ...savedNode } as Partial<DraggableNode>;
+              delete nodeSpecificSavedProps.id; 
               
               const rehydratedNode: DraggableNode = {
                 ...nodeDefinitionFromRegistry,        // 1. Start with everything from registry (icons, execute, default labels, etc.)

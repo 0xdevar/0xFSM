@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Modal,
@@ -72,7 +71,7 @@ import {
   isValidNativeHash,
   isValidNativeName
 } from '../../../components/nodes/utils/validationUtils'
-import { parseLiteral } from '../../../components/nodes/utils/parsingUtils'
+import { parseLiteral, parseIfLiteral } from '../../../components/nodes/utils/parsingUtils'
 
 interface NodeEditorModalProps {
   opened: boolean
@@ -383,10 +382,7 @@ export default function NodeEditorModal ({
           initialData.name = initialData.name || 'myVar'
           initialData.varType = initialData.varType || 'local'
           initialData.dataType = (initialData.dataType || 'string') as VariableDataType;
-          initialData.value = parseLiteral(
-          initialData.value,
-          initialData.dataType
-          )
+          initialData.value = parseLiteral(initialData.value as ReturnType<typeof parseIfLiteral>)
           break
         case 'readVariable':
            initialData.variableName = initialData.variableName || ''
@@ -1093,8 +1089,6 @@ export default function NodeEditorModal ({
     setValidationErrors(errors)
   }, [nodeData])
 
-  // --- Handlers (handleChange, handleSwitchChange, handleArgChange, add/removeArgumentInput, handleSave) remain mostly the same
-
   const handleChange = useCallback(
     (field: keyof DraggableNode, value: any) => {
       setNodeData(prev => {
@@ -1109,7 +1103,7 @@ export default function NodeEditorModal ({
             else if (value === 'variable') defaultValue = '' //
             return { ...prev, dataType: value as VariableDataType, value: defaultValue }
           } else if (field === 'value') {
-            updatedValue = parseLiteral(value, prev.dataType as VariableDataType)
+            updatedValue = parseLiteral(value as ReturnType<typeof parseIfLiteral>)
             return { ...prev, value: updatedValue }
           }
           if (field === 'varType') {
@@ -3956,3 +3950,4 @@ export default function NodeEditorModal ({
     </Modal>
   )
 }
+
