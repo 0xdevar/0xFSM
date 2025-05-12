@@ -30,9 +30,15 @@ export const CallNativeNode: NodeDefinition = {
     }
 
     const args = (this.argumentSources || []).map((argSource: ArgumentSource) => {
-        return argSource.type === 'variable'
-            ? context.getVariable(argSource.value)
-            : parseLiteral(argSource.value);
+
+      if (argSource.type === 'variable') {
+          if (typeof argSource.value !== 'string') {
+               console.warn(`CallNativeNode: Expected string variable name for argument, but got ${typeof argSource.value}. Using 'undefined'.`);
+               return undefined;
+          }
+          return context.getVariable(argSource.value);
+      }
+      return parseLiteral(argSource.value);
     });
 
     

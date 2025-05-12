@@ -91,7 +91,7 @@ type ArgumentSourceType = 'literal' | 'number' | 'boolean' | 'variable' | 'nil';
 
 interface ArgumentSource extends Omit<ArgumentSourceDef, 'type' | 'value'> {
   type: ArgumentSourceType;
-  value: string | number | boolean | null;
+  value: string | number | boolean | null; 
 }
 
 const ValidatedTextInput = ({
@@ -687,7 +687,6 @@ export default function NodeEditorModal ({
   useEffect(() => {
     if (!nodeData) return
     const errors: Record<string, string> = {}
-    // Validation helper functions (validateVar, checkRequired, validateNumberString) remain the same...
     const validateVar = (
       fieldName: string,
       varName: string | undefined,
@@ -1096,10 +1095,14 @@ export default function NodeEditorModal ({
 
     if (Array.isArray(nodeData.argumentSources)) {
       nodeData.argumentSources.forEach((arg, index) => {
-        const fieldName = `argVar_${index}`
-        if (arg.type === 'variable') {
-          validateVar(fieldName, arg.value)
-        }
+         const fieldName = `argVar_${index}`
+         if (arg.type === 'variable') {
+          if (typeof arg.value !== 'string') {
+           errors[fieldName] = 'Variable name must be text.';
+         } else {
+            validateVar(fieldName, arg.value)
+          }
+         }
       })
     }
     setValidationErrors(errors)
@@ -3947,7 +3950,7 @@ export default function NodeEditorModal ({
                           {arg.type === 'literal' && (
                               <TextInput
                                 placeholder="Literal Value (string)"
-                                value={typeof arg.value === 'string' ? arg.value : ''} // Ensure string
+                                value={typeof arg.value === 'string' ? arg.value : String(arg.value ?? '')}
                                 onChange={e => handleArgChange(index, 'value', e.currentTarget.value)}
                                 size="xs"
                                 error={error}
@@ -3980,7 +3983,7 @@ export default function NodeEditorModal ({
                           {arg.type === 'variable' && (
                             <TextInput
                                 placeholder="Variable Name"
-                                value={typeof arg.value === 'string' ? arg.value : ''} // Ensure string
+                                value={typeof arg.value === 'string' ? arg.value : String(arg.value ?? '')}
                                 onChange={e => handleArgChange(index, 'value', e.currentTarget.value)}
                                 size="xs"
                                 required

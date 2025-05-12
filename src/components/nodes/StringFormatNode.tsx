@@ -27,11 +27,16 @@ export const StringFormatNode: NodeDefinition = {
        return { action: 'stringFormat', status: 'error', message: `Invalid result variable name: ${resultVarName}` };
     }
 
-    const args = (this.argumentSources || []).map((argSource: ArgumentSource) => {
-        return argSource.type === 'variable'
-            ? context.getVariable(argSource.value)
-            : parseLiteral(argSource.value);
-    });
+      const args = (this.argumentSources || []).map((argSource: ArgumentSource) => {
+        if (argSource.type === 'variable') {
+             if (typeof argSource.value !== 'string') {
+                 console.warn(`StringFormatNode: Expected string variable name for argument, but got ${typeof argSource.value}. Using 'undefined'.`);
+                 return undefined;
+             }
+             return context.getVariable(argSource.value);
+        }
+        return parseLiteral(argSource.value);
+     });
 
     
     

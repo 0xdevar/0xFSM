@@ -36,11 +36,16 @@ export const TriggerClientEventNode: NodeDefinition = {
      }
 
 
-    const argsToSend: any[] = (this.argumentSources || []).map((argSource: ArgumentSource) => {
-        return argSource.type === 'variable'
-            ? context.getVariable(argSource.value)
-            : parseLiteral(argSource.value);
-    });
+      const argsToSend: any[] = (this.argumentSources || []).map((argSource: ArgumentSource) => {
+        if (argSource.type === 'variable') {
+             if (typeof argSource.value !== 'string') {
+                 console.warn(`TriggerClientEventNode: Expected string variable name for argument, but got ${typeof argSource.value}. Using 'undefined'.`);
+                 return undefined;
+             }
+             return context.getVariable(argSource.value);
+        }
+        return parseLiteral(argSource.value);
+     });
 
     console.log(`TriggerClientEventNode: Simulating trigger '${this.eventName}' for target ${target} with args:`, argsToSend);
     context.addResult({ node: this.label, action: 'triggerClientEvent', eventName: this.eventName, target, args: argsToSend });

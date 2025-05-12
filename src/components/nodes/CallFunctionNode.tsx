@@ -58,11 +58,14 @@ export const CallFunctionNode: NodeDefinition = {
     const argsToSend: any[] = (this.argumentSources || []).map((argSource: ArgumentSource, index: number) => {
         let argValue: any;
         if (argSource.type === 'variable') {
-            argValue = context.getVariable(argSource.value);
-            
-        } else { 
-            argValue = parseLiteral(argSource.value);
-            
+            if (typeof argSource.value !== 'string') {
+                console.warn(`CallFunctionNode: Expected string variable name for arg ${index}, but got ${typeof argSource.value}. Using 'undefined'.`);
+                argValue = undefined;
+            } else {
+                argValue = context.getVariable(argSource.value);
+            }
+        } else {
+            argValue = parseLiteral(String(argSource.value ?? ''));
         }
         return argValue;
     });

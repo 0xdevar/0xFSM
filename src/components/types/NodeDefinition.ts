@@ -12,7 +12,7 @@ export interface BaseNodeDefinition {
 }
 
 export interface ArgumentSource {
-  type: 'variable' | 'literal'| 'number'| 'boolean'| 'nil';
+  type: 'variable' | 'literal' | 'number' | 'boolean' | 'nil';
   value: string | number | boolean | null;
 }
 
