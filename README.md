@@ -41,7 +41,6 @@ To run this project locally:
     ```bash
     npm install
     ```
-    ```
 
 4.  **Run the Development Server:**
     Using npm:
