@@ -168,7 +168,7 @@ export default function EventSettingsModal ({
       onClose={onClose}
       title={
         <Text fw={600}>
-          Edit Settings for:{' '}
+          Edit Settings for:
           <Text span c='teal' inherit>
             {eventName}
           </Text>

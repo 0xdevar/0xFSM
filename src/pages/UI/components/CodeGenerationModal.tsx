@@ -281,15 +281,15 @@ export default function CodeGenerationModal ({
         />
         <Stack gap='md'>
           <Text size='sm' c='dimmed'>
-            {' '}
+            
             Configure the resource manifest (`fxmanifest.lua`). Files for user
             scripts, functions, and events will be generated based on your
-            project graphs.{' '}
+            project graphs.
           </Text>
 
           <Divider label='Core Settings' labelPosition='center' />
           <Group justify="center">
-            {' '}
+            
             <TextInput
               data-autofocus
               label='Resource Name'
@@ -299,14 +299,14 @@ export default function CodeGenerationModal ({
               onChange={e =>
                 handleChange('resourceName', e.currentTarget.value)
               }
-            />{' '}
+            />
             <TextInput
               label='Version'
               placeholder='1.0.0'
               required
               value={settings.version}
               onChange={e => handleChange('version', e.currentTarget.value)}
-            />{' '}
+            />
           </Group>
           <TextInput
             label='Author'
@@ -324,21 +324,21 @@ export default function CodeGenerationModal ({
             maxRows={4}
           />
           <Group justify="center">
-            {' '}
+            
             <Select
               label='FXVersion'
               data={['cerulean', 'adamant', 'bodacious']}
               value={settings.fxVersion}
               onChange={value => handleChange('fxVersion', value || 'cerulean')}
               allowDeselect={false}
-            />{' '}
+            />
             <Select
               label='Game Type'
               data={['gta5', 'rdr3', 'common']}
               value={settings.games[0] || 'gta5'}
               onChange={value => handleChange('games', value)}
               allowDeselect={false}
-            />{' '}
+            />
           </Group>
 
           <Divider label='Scripts & Files' labelPosition='center' mt='sm' />
@@ -412,16 +412,16 @@ export default function CodeGenerationModal ({
 
           <Group justify='flex-end' mt='lg'>
             <Button variant='default' onClick={onClose} disabled={isLoading}>
-              {' '}
-              Cancel{' '}
+              
+              Cancel
             </Button>
             <Button
               onClick={handleGenerate}
               disabled={isLoading || !settings.resourceName}
               loading={isLoading}
             >
-              {' '}
-              Generate & Download ZIP{' '}
+              
+              Generate & Download ZIP
             </Button>
           </Group>
         </Stack>

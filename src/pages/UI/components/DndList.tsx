@@ -117,8 +117,8 @@ export function DndList ({
                   aria-label={`Edit node ${node.label || 'Unnamed Node'}`}
                   onClick={() => handleOpenEditor(node, index)}
                 >
-                  {' '}
-                  <IconSettings size='1rem' stroke={1.5} />{' '}
+                  
+                  <IconSettings size='1rem' stroke={1.5} />
                 </ActionIcon>
               </Tooltip>
               <Tooltip label='Delete Node' withArrow openDelay={500}>
@@ -133,8 +133,8 @@ export function DndList ({
                     handleDeleteClick(index)
                   }}
                 >
-                  {' '}
-                  <IconTrash size='1rem' stroke={1.5} />{' '}
+                  
+                  <IconTrash size='1rem' stroke={1.5} />
                 </ActionIcon>
               </Tooltip>
             </Group>

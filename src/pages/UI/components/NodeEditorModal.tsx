@@ -57,7 +57,7 @@ import {
   IconLock
 } from '@tabler/icons-react'
 import {
-  ArgumentSource,
+  ArgumentSource as ArgumentSourceDef,
   DraggableNode
 } from '../../../components/types/NodeDefinition'
 import {
@@ -71,7 +71,10 @@ import {
   isValidNativeHash,
   isValidNativeName
 } from '../../../components/nodes/utils/validationUtils'
-import { parseLiteral, parseIfLiteral } from '../../../components/nodes/utils/parsingUtils'
+import {
+  parseLiteral,
+  parseIfLiteral
+} from '../../../components/nodes/utils/parsingUtils'
 
 interface NodeEditorModalProps {
   opened: boolean
@@ -82,8 +85,14 @@ interface NodeEditorModalProps {
 }
 
 // Define the specific data types for a variable node
-type VariableDataType = 'string' | 'number' | 'boolean' | 'variable' | 'nil';
+type VariableDataType = 'string' | 'number' | 'boolean' | 'variable' | 'nil'
 
+type ArgumentSourceType = 'literal' | 'number' | 'boolean' | 'variable' | 'nil';
+
+interface ArgumentSource extends Omit<ArgumentSourceDef, 'type' | 'value'> {
+  type: ArgumentSourceType;
+  value: string | number | boolean | null;
+}
 
 const ValidatedTextInput = ({
   field,
@@ -149,7 +158,6 @@ const ValidatedTextarea = ({
   />
 )
 
-// VarLiteralPair (remains the same)...
 const VarLiteralPair = ({
   nodeData,
   onChange,
@@ -166,16 +174,18 @@ const VarLiteralPair = ({
   required = true,
   literalProps = {}
 }: any) => {
-  /* ... no changes ... */
-  const isVariable = nodeData[typeField] ?? false
+    const isChecked = typeof nodeData[typeField] === 'boolean'
+      ? nodeData[typeField]
+      : nodeData[typeField] === 'variable';
+
   return (
     <Stack gap='xs'>
       <Switch
         label={switchLabel}
-        checked={isVariable}
+        checked={isChecked}
         onChange={e => onSwitchChange(typeField, e.currentTarget.checked)}
       />
-      {isVariable ? (
+      {isChecked ? (
         <ValidatedTextInput
           field={varFieldName}
           nodeData={nodeData}
@@ -291,31 +301,57 @@ export default function NodeEditorModal ({
       const initialData = JSON.parse(
         JSON.stringify({ ...nodeInfo.node, index: nodeInfo.index })
       )
-      // Ensure argumentSources is always an array (remains same)
       initialData.argumentSources = Array.isArray(initialData.argumentSources)
-        ? initialData.argumentSources.map((arg: any) => ({
-            type:
-              arg.type === 'variable' || arg.type === 'literal'
-                ? arg.type
-                : 'literal',
-            value: arg.value ?? ''
-          }))
-        : []
+        ? initialData.argumentSources.map((arg: any) => {
+            const allowedTypes: ArgumentSource['type'][] = ['literal', 'number', 'boolean', 'variable', 'nil'];
+            const isValidType = typeof arg.type === 'string' && allowedTypes.includes(arg.type as ArgumentSource['type']);
+            const typeToSet: ArgumentSource['type'] = isValidType ? arg.type as ArgumentSource['type'] : 'literal';
 
-      // Default values specific to node types
+            let valueToSet: ArgumentSource['value'];
+
+            if (arg.value !== undefined && arg.value !== null) { 
+                switch (typeToSet) {
+                    case 'number':
+                        valueToSet = typeof arg.value === 'number' ? arg.value : Number(arg.value || 0);
+                        if (isNaN(valueToSet as number)) valueToSet = 0;
+                        break;
+                    case 'boolean':
+                        valueToSet = typeof arg.value === 'boolean' ? arg.value : String(arg.value).toLowerCase() === 'true';
+                        break;
+                    case 'nil':
+                        valueToSet = null;
+                        break;
+                    case 'literal':
+                    case 'variable':
+                    default:
+                        valueToSet = String(arg.value ?? '');
+                        break;
+                }
+            } else { 
+                switch (typeToSet) {
+                    case 'number': valueToSet = 0; break;
+                    case 'boolean': valueToSet = false; break;
+                    case 'nil': valueToSet = null; break;
+                    default: valueToSet = ''; break;
+                }
+            }
+
+            return {
+              type: typeToSet,
+              value: valueToSet
+            };
+          })
+        : [];
+
       switch (initialData.id) {
-        // --- EXISTING CASES ---
-        // ... (all existing cases for print, math, variable, etc. remain unchanged) ...
         case 'registerCommand':
-           initialData.commandName =
-            initialData.commandName || 'mycommand'
+          initialData.commandName = initialData.commandName || 'mycommand'
           initialData.functionName = initialData.functionName || ''
           initialData.restricted = initialData.restricted ?? false
           break
         case 'callFunction':
-           initialData.functionName = initialData.functionName || ''
-          initialData.resultVariable =
-            initialData.resultVariable || 'functionResult'
+          initialData.functionName = initialData.functionName || ''
+          initialData.resultVariable = initialData.resultVariable || ''
           const targetParams =
             getGraph(`${FUNC_PREFIX}${initialData.functionName}`)?.parameters ||
             []
@@ -331,14 +367,14 @@ export default function NodeEditorModal ({
           }
           break
         case 'return':
-           initialData.useVariableForResult =
+          initialData.useVariableForResult =
             initialData.useVariableForResult ?? true
           initialData.returnVariable = initialData.returnVariable || ''
           initialData.returnValue = initialData.returnValue ?? ''
           break
         case 'ifCondition':
         case 'whileCondition':
-           initialData.conditionLhsType =
+          initialData.conditionLhsType =
             initialData.conditionLhsType ?? 'variable'
           initialData.conditionLhsValue = initialData.conditionLhsValue ?? ''
           initialData.conditionOperator = initialData.conditionOperator ?? '=='
@@ -348,8 +384,7 @@ export default function NodeEditorModal ({
             initialData.conditionRhsValue ?? 'true'
           break
         case 'forLoopNumeric':
-           initialData.controlVariable =
-            initialData.controlVariable || 'i'
+          initialData.controlVariable = initialData.controlVariable || 'i'
           initialData.startValueType = initialData.startValueType || 'literal'
           initialData.startValue = initialData.startValue ?? '1'
           initialData.endValueType = initialData.endValueType || 'literal'
@@ -358,7 +393,7 @@ export default function NodeEditorModal ({
           initialData.stepValue = initialData.stepValue ?? '1'
           break
         case 'print':
-           initialData.useVariableForMessage =
+          initialData.useVariableForMessage =
             initialData.useVariableForMessage ?? false
           initialData.messageVariable = initialData.messageVariable || ''
           initialData.message = initialData.message ?? 'Hello World'
@@ -366,7 +401,7 @@ export default function NodeEditorModal ({
           initialData.color = initialData.color || '#ffffff'
           break
         case 'math':
-           initialData.operation = initialData.operation || 'add'
+          initialData.operation = initialData.operation || 'add'
           initialData.useVariableForValue1 =
             initialData.useVariableForValue1 ?? false
           initialData.value1Variable = initialData.value1Variable || ''
@@ -381,15 +416,18 @@ export default function NodeEditorModal ({
         case 'variable':
           initialData.name = initialData.name || 'myVar'
           initialData.varType = initialData.varType || 'local'
-          initialData.dataType = (initialData.dataType || 'string') as VariableDataType;
-          initialData.value = parseLiteral(initialData.value as ReturnType<typeof parseIfLiteral>)
+          initialData.dataType = (initialData.dataType ||
+            'string') as VariableDataType
+          initialData.value = parseLiteral(
+            initialData.value as ReturnType<typeof parseIfLiteral>
+          )
           break
         case 'readVariable':
-           initialData.variableName = initialData.variableName || ''
+          initialData.variableName = initialData.variableName || ''
           initialData.defaultValue = initialData.defaultValue ?? ''
           break
         case 'concatStrings':
-           initialData.useVariableForString1 =
+          initialData.useVariableForString1 =
             initialData.useVariableForString1 ?? false
           initialData.string1Variable = initialData.string1Variable || ''
           initialData.string1 = initialData.string1 ?? ''
@@ -401,23 +439,22 @@ export default function NodeEditorModal ({
             initialData.resultVariable || 'concatResult'
           break
         case 'wait':
-           initialData.useVariableForDuration =
+          initialData.useVariableForDuration =
             initialData.useVariableForDuration ?? false
           initialData.durationVariable = initialData.durationVariable || ''
           initialData.duration = initialData.duration ?? 1000
           break
         case 'triggerServerEvent':
-           initialData.eventName = initialData.eventName || ''
+          initialData.eventName = initialData.eventName || ''
           break
         case 'triggerClientEvent':
-           initialData.eventName = initialData.eventName || ''
+          initialData.eventName = initialData.eventName || ''
           initialData.targetPlayer = initialData.targetPlayer ?? '-1'
           initialData.useVariableForTarget =
             initialData.useVariableForTarget ?? false
           break
         case 'forLoopGeneric':
-           initialData.tableVariable =
-            initialData.tableVariable || 'myTable'
+          initialData.tableVariable = initialData.tableVariable || 'myTable'
           initialData.iterationType = initialData.iterationType || 'pairs'
           initialData.keyVariable =
             initialData.keyVariable ||
@@ -425,20 +462,17 @@ export default function NodeEditorModal ({
           initialData.valueVariable = initialData.valueVariable || 'value'
           break
         case 'createTable':
-           initialData.variableName =
-            initialData.variableName || 'newTable'
+          initialData.variableName = initialData.variableName || 'newTable'
           break
         case 'setTableValue':
-           initialData.tableVariable =
-            initialData.tableVariable || 'myTable'
+          initialData.tableVariable = initialData.tableVariable || 'myTable'
           initialData.keyType = initialData.keyType || 'literal'
           initialData.keyValue = initialData.keyValue ?? 'myKey'
           initialData.valueType = initialData.valueType || 'literal'
           initialData.valueSource = initialData.valueSource ?? ''
           break
         case 'getTableValue':
-           initialData.tableVariable =
-            initialData.tableVariable || 'myTable'
+          initialData.tableVariable = initialData.tableVariable || 'myTable'
           initialData.keyType = initialData.keyType || 'literal'
           initialData.keyValue = initialData.keyValue ?? 'myKey'
           initialData.resultVariable =
@@ -446,13 +480,11 @@ export default function NodeEditorModal ({
           initialData.defaultValue = initialData.defaultValue ?? ''
           break
         case 'callNative':
-           initialData.nativeNameOrHash =
-            initialData.nativeNameOrHash || ''
+          initialData.nativeNameOrHash = initialData.nativeNameOrHash || ''
           initialData.resultVariable = initialData.resultVariable || ''
           break
         case 'vector3':
-           initialData.useVariableForX =
-            initialData.useVariableForX ?? false
+          initialData.useVariableForX = initialData.useVariableForX ?? false
           initialData.xSource = initialData.xSource ?? '0.0'
           initialData.useVariableForY = initialData.useVariableForY ?? false
           initialData.ySource = initialData.ySource ?? '0.0'
@@ -461,30 +493,27 @@ export default function NodeEditorModal ({
           initialData.resultVariable = initialData.resultVariable || 'myVector'
           break
         case 'json':
-           initialData.jsonOperation =
-            initialData.jsonOperation || 'encode'
+          initialData.jsonOperation = initialData.jsonOperation || 'encode'
           initialData.inputVariable = initialData.inputVariable || 'inputData'
           initialData.resultVariable = initialData.resultVariable || 'jsonData'
           break
         case 'insertIntoTable':
-           initialData.tableVariable =
-            initialData.tableVariable || 'myTable'
-          initialData.valueType = initialData.valueType || 'literal'
-          initialData.valueSource = initialData.valueSource ?? ''
+          initialData.tableVariable = initialData.tableVariable || 'myTable';
+          initialData.valueType = initialData.valueType || 'literal';
+          initialData.valueSource = initialData.valueSource ?? '';
           break
         case 'getTableLength':
-           initialData.tableVariable =
-            initialData.tableVariable || 'myTable'
+          initialData.tableVariable = initialData.tableVariable || 'myTable'
           initialData.resultVariable =
-            initialData.resultVariable || 'tableLength'
+          initialData.resultVariable || 'tableLength'
           break
         case 'stringFormat':
-           initialData.formatString = initialData.formatString || ''
+          initialData.formatString = initialData.formatString || ''
           initialData.resultVariable =
             initialData.resultVariable || 'formattedString'
           break
         case 'stringSplit':
-           initialData.useVariableForInput =
+          initialData.useVariableForInput =
             initialData.useVariableForInput ?? false
           initialData.inputStringVariable =
             initialData.inputStringVariable || ''
@@ -497,7 +526,7 @@ export default function NodeEditorModal ({
         case 'typeCheck':
         case 'toString':
         case 'toNumber':
-           initialData.useVariableForInput =
+          initialData.useVariableForInput =
             initialData.useVariableForInput ?? true
           initialData.inputVariable = initialData.inputVariable || ''
           initialData.inputValue = initialData.inputValue ?? ''
@@ -513,7 +542,7 @@ export default function NodeEditorModal ({
           }
           break
         case 'stringSubstring':
-           initialData.useVariableForInput =
+          initialData.useVariableForInput =
             initialData.useVariableForInput ?? false
           initialData.inputStringVariable =
             initialData.inputStringVariable || ''
@@ -526,7 +555,7 @@ export default function NodeEditorModal ({
             initialData.resultVariable || 'substringResult'
           break
         case 'stringLength':
-           initialData.useVariableForInput =
+          initialData.useVariableForInput =
             initialData.useVariableForInput ?? false
           initialData.inputStringVariable =
             initialData.inputStringVariable || ''
@@ -535,7 +564,7 @@ export default function NodeEditorModal ({
             initialData.resultVariable || 'stringLengthResult'
           break
         case 'stringFind':
-           initialData.useVariableForHaystack =
+          initialData.useVariableForHaystack =
             initialData.useVariableForHaystack ?? false
           initialData.haystackVariable = initialData.haystackVariable || ''
           initialData.haystackString = initialData.haystackString ?? ''
@@ -551,7 +580,7 @@ export default function NodeEditorModal ({
           initialData.resultEndIndexVar = initialData.resultEndIndexVar || ''
           break
         case 'stringReplace':
-           initialData.useVariableForInput =
+          initialData.useVariableForInput =
             initialData.useVariableForInput ?? false
           initialData.inputStringVariable =
             initialData.inputStringVariable || ''
@@ -573,7 +602,7 @@ export default function NodeEditorModal ({
             initialData.resultCountVariable || ''
           break
         case 'stringCase':
-           initialData.useVariableForInput =
+          initialData.useVariableForInput =
             initialData.useVariableForInput ?? false
           initialData.inputStringVariable =
             initialData.inputStringVariable || ''
@@ -583,7 +612,7 @@ export default function NodeEditorModal ({
             initialData.resultVariable || 'casedString'
           break
         case 'mathAdvanced':
-           initialData.mathOperationType =
+          initialData.mathOperationType =
             initialData.mathOperationType || 'floor'
           initialData.value1Type = initialData.value1Type || 'literal'
           initialData.value1 = initialData.value1 ?? '0'
@@ -595,16 +624,14 @@ export default function NodeEditorModal ({
             initialData.resultVariable || 'mathAdvResult'
           break
         case 'tableRemove':
-           initialData.tableVariable =
-            initialData.tableVariable || 'myTable'
+          initialData.tableVariable = initialData.tableVariable || 'myTable'
           initialData.indexType = initialData.indexType || 'literal'
           initialData.index = initialData.index ?? ''
           initialData.resultRemovedValueVar =
             initialData.resultRemovedValueVar || ''
           break
         case 'tableSort':
-           initialData.tableVariable =
-            initialData.tableVariable || 'myTable'
+          initialData.tableVariable = initialData.tableVariable || 'myTable'
           initialData.sortFunctionType = initialData.sortFunctionType || 'none'
           initialData.sortFunctionVariable =
             initialData.sortFunctionVariable || ''
@@ -761,7 +788,6 @@ export default function NodeEditorModal ({
         break
       case 'callFunction':
         checkRequired('functionName', nodeData.functionName)
-        validateVar('resultVariable', nodeData.resultVariable)
         break
       case 'triggerServerEvent':
         checkRequired('eventName', nodeData.eventName)
@@ -1038,46 +1064,36 @@ export default function NodeEditorModal ({
         }
         break
 
-      // >>>>> Ludb Node Validations START <<<<<
       case 'ludbSaveGlobal':
       case 'ludbSaveLocal':
-        // Validate Key
         if (nodeData.keyType === 'variable') {
           validateVar('keyValue', nodeData.keyValue)
         } else {
-          // Literal key (string or number - ludb keys are strings)
           checkRequired('keyValue', nodeData.keyValue)
         }
-        // Validate Value
         if (nodeData.valueType === 'variable') {
           validateVar('valueSource', nodeData.valueSource)
-        } // Literal value can be anything (string, number, boolean, nil), so just check if required? Ludb likely handles serialization.
+        }
         break
       case 'ludbRetrieveGlobal':
       case 'ludbRetrieveLocal':
-        // Validate Key
         if (nodeData.keyType === 'variable') {
           validateVar('keyValue', nodeData.keyValue)
         } else {
           checkRequired('keyValue', nodeData.keyValue)
         }
-        // Validate Result Variable
         validateVar('resultVariable', nodeData.resultVariable)
-        // Default value is always literal, no validation needed unless we parse it
         break
       case 'ludbDeleteGlobal':
       case 'ludbDeleteLocal':
-        // Validate Key
         if (nodeData.keyType === 'variable') {
           validateVar('keyValue', nodeData.keyValue)
         } else {
           checkRequired('keyValue', nodeData.keyValue)
         }
         break
-      // >>>>> Ludb Node Validations END <<<<<
     }
 
-    // Argument sources validation (common, remains the same)
     if (Array.isArray(nodeData.argumentSources)) {
       nodeData.argumentSources.forEach((arg, index) => {
         const fieldName = `argVar_${index}`
@@ -1101,9 +1117,15 @@ export default function NodeEditorModal ({
             else if (value === 'boolean') defaultValue = false
             else if (value === 'nil') defaultValue = null
             else if (value === 'variable') defaultValue = '' //
-            return { ...prev, dataType: value as VariableDataType, value: defaultValue }
+            return {
+              ...prev,
+              dataType: value as VariableDataType,
+              value: defaultValue
+            }
           } else if (field === 'value') {
-            updatedValue = parseLiteral(value as ReturnType<typeof parseIfLiteral>)
+            updatedValue = parseLiteral(
+              value as ReturnType<typeof parseIfLiteral>
+            )
             return { ...prev, value: updatedValue }
           }
           if (field === 'varType') {
@@ -1145,144 +1167,208 @@ export default function NodeEditorModal ({
   )
   const handleSwitchChange = useCallback(
     (field: keyof DraggableNode, checked: boolean) => {
-      /* ... no changes ... */ const isVariable = checked
-      handleChange(field, isVariable)
-      let varField = ''
-      let literalField = ''
-      let defaultValue: any = ''
-      if (typeof field === 'string') {
-        const baseName = field.startsWith('useVariableFor')
-          ? field.substring('useVariableFor'.length)
-          : field
-        const lcBaseName = baseName.charAt(0).toLowerCase() + baseName.slice(1)
-        switch (nodeData?.id) {
-          case 'math':
-            varField =
-              field === 'useVariableForValue1'
-                ? 'value1Variable'
-                : 'value2Variable'
-            literalField =
-              field === 'useVariableForValue1' ? 'value1' : 'value2'
-            defaultValue = 0
-            break
-          case 'concatStrings':
-            varField =
-              field === 'useVariableForString1'
-                ? 'string1Variable'
-                : 'string2Variable'
-            literalField =
-              field === 'useVariableForString1' ? 'string1' : 'string2'
-            defaultValue = ''
-            break
-          case 'print':
-            varField = 'messageVariable'
-            literalField = 'message'
-            defaultValue = 'Hello'
-            break
-          case 'wait':
-            varField = 'durationVariable'
-            literalField = 'duration'
-            defaultValue = 1000
-            break
-          case 'return':
-            varField = 'returnVariable'
-            literalField = 'returnValue'
-            defaultValue = ''
-            break
-          case 'triggerClientEvent':
-            if (field === 'useVariableForTarget') {
-              varField = 'targetPlayer'
-              literalField = 'targetPlayer'
-              defaultValue = '-1'
-            }
-            break
+      setNodeData(prev => {
+        if (!prev) return null;
+
+        const newState = { ...prev };
+        const isVariable = checked;
+
+        let typeField: keyof DraggableNode | null = null;
+        let varValueField: keyof DraggableNode | null = null;
+        let literalValueField: keyof DraggableNode | null = null;
+        let defaultLiteralValue: any = '';
+
+        switch (prev.id) {
           case 'vector3':
-            varField = lcBaseName + 'Source'
-            literalField = varField
-            defaultValue = '0.0'
-            break
-          case 'stringSplit':
-          case 'typeCheck':
-          case 'toString':
-          case 'toNumber':
-            if (field === 'useVariableForInput') {
-              varField = 'inputVariable'
-              literalField =
-                nodeData.id === 'stringSplit' ? 'inputString' : 'inputValue'
-              defaultValue = ''
+            if (field === 'useVariableForX' || field === 'useVariableForY' || field === 'useVariableForZ') {
+              typeField = field;
+              varValueField = field.replace('useVariableFor', '').toLowerCase() + 'Source' as keyof DraggableNode;
+              literalValueField = varValueField;
+              defaultLiteralValue = '0.0';
             }
-            break
-          case 'insertIntoTable':
-          case 'setTableValue':
-            if (field === 'valueType') {
-              varField = 'valueSource'
-              literalField = 'valueSource'
-              defaultValue = ''
-            }
-            break
+            break;
+          case 'math':
+             if (field === 'useVariableForValue1' || field === 'useVariableForValue2') {
+               typeField = field;
+               varValueField = (field === 'useVariableForValue1' ? 'value1Variable' : 'value2Variable') as keyof DraggableNode;
+               literalValueField = (field === 'useVariableForValue1' ? 'value1' : 'value2') as keyof DraggableNode;
+               defaultLiteralValue = 0;
+             }
+             break;
+           case 'concatStrings':
+             if (field === 'useVariableForString1' || field === 'useVariableForString2') {
+               typeField = field;
+               varValueField = (field === 'useVariableForString1' ? 'string1Variable' : 'string2Variable') as keyof DraggableNode;
+               literalValueField = (field === 'useVariableForString1' ? 'string1' : 'string2') as keyof DraggableNode;
+               defaultLiteralValue = '';
+             }
+             break;
+           case 'print':
+             if (field === 'useVariableForMessage') {
+               typeField = field;
+               varValueField = 'messageVariable';
+               literalValueField = 'message';
+               defaultLiteralValue = 'Hello';
+             }
+             break;
+           case 'wait':
+             if (field === 'useVariableForDuration') {
+               typeField = field;
+               varValueField = 'durationVariable';
+               literalValueField = 'duration';
+               defaultLiteralValue = 1000;
+             }
+             break;
+           case 'return':
+             if (field === 'useVariableForResult') {
+               typeField = field;
+               varValueField = 'returnVariable';
+               literalValueField = 'returnValue';
+               defaultLiteralValue = '';
+             }
+             break;
+           case 'triggerClientEvent':
+             if (field === 'useVariableForTarget') {
+               typeField = field;
+               varValueField = 'targetPlayer';
+               literalValueField = 'targetPlayer';
+               defaultLiteralValue = '-1';
+             }
+             break;
+           case 'stringSplit':
+           case 'typeCheck':
+           case 'toString':
+           case 'toNumber':
+             if (field === 'useVariableForInput') {
+               typeField = field;
+               varValueField = 'inputVariable';
+               literalValueField = (prev.id === 'stringSplit' ? 'inputString' : 'inputValue') as keyof DraggableNode;
+               defaultLiteralValue = '';
+             }
+             break;
           case 'stringSubstring':
           case 'stringLength':
           case 'stringCase':
-            if (field === 'useVariableForInput') {
-              varField = 'inputStringVariable'
-              literalField = 'inputString'
-              defaultValue = ''
-            }
-            break
-          case 'stringFind':
-            if (field === 'useVariableForHaystack') {
-              varField = 'haystackVariable'
-              literalField = 'haystackString'
-              defaultValue = ''
-            }
-            if (field === 'useVariableForNeedle') {
-              varField = 'needleVariable'
-              literalField = 'needleString'
-              defaultValue = ''
-            }
-            break
-          case 'stringReplace':
-            if (field === 'useVariableForInput') {
-              varField = 'inputStringVariable'
-              literalField = 'inputString'
-              defaultValue = ''
-            }
-            if (field === 'useVariableForPattern') {
-              varField = 'patternVariable'
-              literalField = 'patternString'
-              defaultValue = ''
-            }
-            if (field === 'useVariableForReplacement') {
-              varField = 'replacementVariable'
-              literalField = 'replacementString'
-              defaultValue = ''
-            }
-            break
-          case 'mathAdvanced':
-            if (field === 'value1Type') {
-              varField = 'value1Variable'
-              literalField = 'value1'
-              defaultValue = '0'
-            }
-            if (field === 'value2Type') {
-              varField = 'value2Variable'
-              literalField = 'value2'
-              defaultValue = '0'
-            }
-            break
+             if (field === 'useVariableForInput') {
+               typeField = field;
+               varValueField = 'inputStringVariable';
+               literalValueField = 'inputString';
+               defaultLiteralValue = '';
+             }
+             break;
+           case 'stringFind':
+             if (field === 'useVariableForHaystack') {
+               typeField = field; varValueField = 'haystackVariable'; literalValueField = 'haystackString'; defaultLiteralValue = '';
+             } else if (field === 'useVariableForNeedle') {
+               typeField = field; varValueField = 'needleVariable'; literalValueField = 'needleString'; defaultLiteralValue = '';
+             } else if (field === 'startIndexType') {
+                typeField = field; varValueField = 'startIndex'; literalValueField = 'startIndex'; defaultLiteralValue = '1';
+             }
+             break;
+           case 'stringReplace':
+             if (field === 'useVariableForInput') {
+               typeField = field; varValueField = 'inputStringVariable'; literalValueField = 'inputString'; defaultLiteralValue = '';
+             } else if (field === 'useVariableForPattern') {
+               typeField = field; varValueField = 'patternVariable'; literalValueField = 'patternString'; defaultLiteralValue = '';
+             } else if (field === 'useVariableForReplacement') {
+               typeField = field; varValueField = 'replacementVariable'; literalValueField = 'replacementString'; defaultLiteralValue = '';
+             } else if (field === 'limitType') {
+                typeField = field; varValueField = 'limit'; literalValueField = 'limit'; defaultLiteralValue = '';
+             }
+             break;
+           case 'mathAdvanced':
+             if (field === 'value1Type') {
+               typeField = field; varValueField = 'value1Variable'; literalValueField = 'value1'; defaultLiteralValue = '0';
+             } else if (field === 'value2Type') {
+               typeField = field; varValueField = 'value2Variable'; literalValueField = 'value2'; defaultLiteralValue = '0';
+             }
+             break;
+            case 'forLoopNumeric':
+                if (field === 'startValueType') {
+                     typeField = field; varValueField = 'startValue'; literalValueField = 'startValue'; defaultLiteralValue = '1';
+                } else if (field === 'endValueType') {
+                     typeField = field; varValueField = 'endValue'; literalValueField = 'endValue'; defaultLiteralValue = '10';
+                } else if (field === 'stepValueType') {
+                    typeField = field; varValueField = 'stepValue'; literalValueField = 'stepValue'; defaultLiteralValue = '1';
+                }
+                break;
+           case 'insertIntoTable': 
+           case 'setTableValue':   
+           case 'getTableValue':  
+                if (field === 'keyType' && (prev.id === 'setTableValue' || prev.id === 'getTableValue')) { 
+                    typeField = 'keyType';
+                    varValueField = 'keyValue';
+                    literalValueField = 'keyValue';
+                    const currentKeyTypeValue = newState[field] as string; 
+                    if (isVariable) {
+                        defaultLiteralValue = '';
+                    } else {
+                        defaultLiteralValue = (newState as any)._originalKeyType === 'number_literal' ? 0 : '';
+                    }
+                } else if (field === 'valueType' && (prev.id === 'setTableValue' || prev.id === 'insertIntoTable')) {
+                    typeField = 'valueType';
+                    varValueField = 'valueSource';
+                    literalValueField = 'valueSource';
+                    defaultLiteralValue = '';
+                }
+                break;
+           case 'tableRemove':
+               if (field === 'indexType') {
+                   typeField = field; varValueField = 'index'; literalValueField = 'index'; defaultLiteralValue = '';
+               }
+               break;
+          default:
+            console.warn(`handleSwitchChange: Node type ${prev.id} or field ${String(field)} not explicitly handled.`);
+            return prev;
         }
-      }
-      if (varField && literalField) {
-        if (isVariable) {
-          handleChange(literalField, '')
+
+        if (!typeField || !varValueField || !literalValueField) {
+             console.error("handleSwitchChange: Could not determine fields to update for", prev.id, field);
+             return prev;
+        }
+
+        const actualSwitchControlledField = field;
+
+
+        if (typeof actualSwitchControlledField === 'string' && actualSwitchControlledField.startsWith('useVariableFor')) {
+            newState[actualSwitchControlledField] = isVariable;
         } else {
-          handleChange(varField, '')
-          handleChange(literalField, defaultValue)
+            newState[actualSwitchControlledField] = isVariable ? 'variable' : 'literal';
+            if (actualSwitchControlledField === 'keyType' && !isVariable && (prev as any)._originalKeyType === 'number_literal') {
+                newState[actualSwitchControlledField] = 'number_literal';
+            }
+            if ( (prev.id === 'stringFind' && actualSwitchControlledField === 'startIndexType') ||
+                 (prev.id === 'stringSubstring' && (actualSwitchControlledField === 'startIndexType' || actualSwitchControlledField === 'endIndexType')) ||
+                 (prev.id === 'stringReplace' && actualSwitchControlledField === 'limitType') ||
+                 (prev.id === 'forLoopNumeric' && (actualSwitchControlledField === 'startValueType' || actualSwitchControlledField === 'endValueType' || actualSwitchControlledField === 'stepValueType')) ||
+                 (prev.id === 'mathAdvanced' && (actualSwitchControlledField === 'value1Type' || actualSwitchControlledField === 'value2Type')) ||
+                 (prev.id === 'tableRemove' && actualSwitchControlledField === 'indexType')
+            ) {
+                 newState[actualSwitchControlledField] = isVariable ? 'variable' : 'literal';
+            }
         }
-      }
+
+
+        if (isVariable) {
+          if (literalValueField !== varValueField && newState[literalValueField] !== undefined) {
+             newState[literalValueField] = defaultLiteralValue;
+          }
+          if (typeof newState[varValueField] !== 'string' || !isValidLuaIdentifier(newState[varValueField] as string)) {
+              newState[varValueField] = '';
+          }
+        } else {
+          if (varValueField !== literalValueField && newState[varValueField] !== undefined) {
+              newState[varValueField] = '';
+          }
+          newState[literalValueField] = defaultLiteralValue;
+        }
+
+        console.log("handleSwitchChange new State:", newState);
+        return newState;
+      });
     },
-    [handleChange, nodeData?.id]
-  )
+    [setNodeData]
+  );
   const handleArgChange = useCallback(
     (
       index: number,
@@ -1290,34 +1376,52 @@ export default function NodeEditorModal ({
       value: ArgumentSource['type'] | ArgumentSource['value']
     ) => {
       setNodeData(prev => {
-        if (!prev || !Array.isArray(prev.argumentSources)) return prev
-        const newArgs = [...prev.argumentSources]
+        if (!prev || !Array.isArray(prev.argumentSources)) return prev;
+        const newArgs = [...prev.argumentSources];
         if (index >= 0 && index < newArgs.length) {
-          const currentArg = { ...newArgs[index] }
-          
+          const currentArg = { ...newArgs[index] };
+
           if (field === 'type') {
-             // Ensure value is one of the allowed types for ArgumentSource['type']
-            if (value === 'literal' || value === 'variable') {
-              currentArg.type = value;
-              currentArg.value = ''; // Reset value when type changes
+            const newType = value as ArgumentSource['type'];
+
+            const allowedTypes: ArgumentSource['type'][] = ['literal', 'number', 'boolean', 'variable', 'nil'];
+
+            if (allowedTypes.includes(newType)) {
+              currentArg.type = newType;
+
+              switch (newType) {
+                case 'number':
+                  currentArg.value = 0;
+                  break;
+                case 'boolean':
+                  currentArg.value = false;
+                  break;
+                case 'nil':
+                  currentArg.value = null;
+                  break;
+                case 'literal': 
+                case 'variable': 
+                default:
+                  currentArg.value = '';
+                  break;
+              }
             } else {
-              // Handle unexpected value, perhaps log an error or default
-              console.warn(`Invalid value for ArgumentSource type: ${value}`);
-              // Optionally default to 'literal' or skip update
-              currentArg.type = 'literal'; 
+              console.warn(`Invalid value provided for ArgumentSource type: ${String(value)}`);
+              currentArg.type = 'literal';
               currentArg.value = '';
             }
-          } else {
-             currentArg[field] = value as string; // Assuming value is always string for 'value' field
+          } else if (field === 'value') {
+             currentArg.value = value as ArgumentSource['value'];
           }
-          newArgs[index] = currentArg
-          return { ...prev, argumentSources: newArgs }
+
+          newArgs[index] = currentArg;
+          return { ...prev, argumentSources: newArgs };
         }
-        return prev
-      })
+        return prev;
+      });
     },
     []
-  )
+  );
   const addArgumentInput = useCallback(() => {
     /* ... no changes ... */ setNodeData(prev => {
       if (!prev) return prev
@@ -1354,8 +1458,32 @@ export default function NodeEditorModal ({
     let finalNodeData = { ...nodeData }
     if (Array.isArray(finalNodeData.argumentSources)) {
       finalNodeData.argumentSources = finalNodeData.argumentSources.map(
-        arg => ({ type: arg.type || 'literal', value: arg.value ?? '' })
-      )
+        (arg: ArgumentSource) => { 
+          let finalValue = arg.value;
+
+          switch (arg.type) {
+            case 'number':
+              finalValue = typeof arg.value === 'number' ? arg.value : Number(arg.value || 0);
+              if (isNaN(finalValue as number)) finalValue = 0;
+              break;
+            case 'boolean':
+              finalValue = typeof arg.value === 'boolean' ? arg.value : String(arg.value).toLowerCase() === 'true';
+              break;
+            case 'nil':
+              finalValue = null; 
+              break;
+            case 'literal':
+            case 'variable':
+            default:
+              finalValue = arg.value === null || arg.value === undefined ? '' : String(arg.value);
+              break;
+          }
+          return {
+            type: arg.type || ('literal' as ArgumentSource['type']), 
+            value: finalValue
+          };
+        }
+      );
     }
     onSave(finalNodeData)
   }, [nodeData, onSave, validationErrors])
@@ -1371,18 +1499,18 @@ export default function NodeEditorModal ({
       case 'registerCommand':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <Alert
               icon={<IconInfoCircle size='1rem' />}
               title='Command Registration'
               color='blue'
               variant='outline'
             >
-              {' '}
+              
               Defines a chat command. When typed by a player, the selected
               function graph will be executed. Place this node in a `client` or
-              `server` file graph.{' '}
-            </Alert>{' '}
+              `server` file graph.
+            </Alert>
             <ValidatedTextInput
               field='commandName'
               nodeData={nodeData}
@@ -1392,7 +1520,7 @@ export default function NodeEditorModal ({
               placeholder='e.g., car, help, admin'
               required
               icon={<IconTerminal size='1rem' />}
-            />{' '}
+            />
             <Select
               label='Function to Execute'
               placeholder='Select function graph'
@@ -1409,24 +1537,24 @@ export default function NodeEditorModal ({
               error={validationErrors['functionName']}
               leftSection={<IconSubtask size='1rem' stroke={1.5} />}
               description='Select the function to run when the command is entered.'
-            />{' '}
+            />
             <Switch
               label="Restricted (Requires 'command.yourCommandName' ACE permission)"
               checked={nodeData.restricted ?? false}
               onChange={e =>
                 handleChange('restricted', e.currentTarget.checked)
               }
-            />{' '}
+            />
             <Alert
               icon={<IconAlertCircle size='1rem' />}
               color='orange'
               variant='light'
             >
-              {' '}
+              
               Ensure the selected function (`{nodeData.functionName || '...'}`)
               has parameters defined (e.g., `source`, `args`, `rawCommand`) in
-              its settings to receive command arguments.{' '}
-            </Alert>{' '}
+              its settings to receive command arguments.
+            </Alert>
           </Stack>
         )
       case 'elseCondition':
@@ -1441,15 +1569,15 @@ export default function NodeEditorModal ({
             title='Control Flow Marker'
             color='gray'
           >
-            {' '}
+            
             {nodeData.description ||
-              'This node marks a point in the control flow and has no configurable properties.'}{' '}
+              'This node marks a point in the control flow and has no configurable properties.'}
           </Alert>
         )
       case 'print':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <VarLiteralPair
               nodeData={nodeData}
               onChange={handleChange}
@@ -1466,7 +1594,7 @@ export default function NodeEditorModal ({
                 placeholder: 'Enter message to print/display',
                 minRows: 2
               }}
-            />{' '}
+            />
             <SegmentedControl
               fullWidth
               value={nodeData.printToConsole ? 'console' : 'chat'}
@@ -1476,24 +1604,24 @@ export default function NodeEditorModal ({
               data={[
                 {
                   label: (
-                    <Group gap="xs" wrap="nowrap" justify="center">
-                      <IconMessageCircle size="1rem" stroke={1.5} />
+                    <Group gap='xs' wrap='nowrap' justify='center'>
+                      <IconMessageCircle size='1rem' stroke={1.5} />
                       <span>F8 Console</span>
                     </Group>
                   ),
-                  value: 'console',
+                  value: 'console'
                 },
                 {
                   label: (
-                    <Group gap="xs" wrap="nowrap" justify="center">
-                      <IconMessageChatbot size="1rem" stroke={1.5} />
+                    <Group gap='xs' wrap='nowrap' justify='center'>
+                      <IconMessageChatbot size='1rem' stroke={1.5} />
                       <span>Chat (Simulated)</span>
                     </Group>
                   ),
-                  value: 'chat',
+                  value: 'chat'
                 }
               ]}
-            />{' '}
+            />
             {!nodeData.printToConsole && (
               <ColorInput
                 label='Simulated Chat Color'
@@ -1502,13 +1630,13 @@ export default function NodeEditorModal ({
                 format='hex'
                 leftSection={<IconPalette size='1rem' />}
               />
-            )}{' '}
+            )}
           </Stack>
         )
       case 'math':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <Select
               label='Operation'
               data={[
@@ -1522,9 +1650,9 @@ export default function NodeEditorModal ({
               allowDeselect={false}
               leftSection={<IconMath size='1rem' />}
               styles={{ label: { marginBottom: 'var(--mantine-spacing-xs)' } }}
-            />{' '}
+            />
             <Group grow align='flex-start'>
-              {' '}
+              
               <VarLiteralPair
                 nodeData={nodeData}
                 onChange={handleChange}
@@ -1538,7 +1666,7 @@ export default function NodeEditorModal ({
                 literalInputType='number'
                 required
                 literalProps={{ allowDecimal: true }}
-              />{' '}
+              />
               <VarLiteralPair
                 nodeData={nodeData}
                 onChange={handleChange}
@@ -1552,9 +1680,9 @@ export default function NodeEditorModal ({
                 literalInputType='number'
                 required
                 literalProps={{ allowDecimal: true }}
-              />{' '}
-            </Group>{' '}
-            <Divider label='Output' labelPosition='center' />{' '}
+              />
+            </Group>
+            <Divider label='Output' labelPosition='center' />
             <ValidatedTextInput
               field='resultVariable'
               nodeData={nodeData}
@@ -1564,13 +1692,13 @@ export default function NodeEditorModal ({
               placeholder='mathResult'
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
           </Stack>
         )
       case 'variable':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <ValidatedTextInput
               field='name'
               nodeData={nodeData}
@@ -1580,7 +1708,7 @@ export default function NodeEditorModal ({
               placeholder='myVariable'
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
             <SegmentedControl
               fullWidth
               data={[
@@ -1589,7 +1717,7 @@ export default function NodeEditorModal ({
               ]}
               value={nodeData.varType ?? 'local'}
               onChange={value => handleChange('varType', value)}
-            />{' '}
+            />
             <Select
               label='Data Type'
               data={[
@@ -1597,12 +1725,14 @@ export default function NodeEditorModal ({
                 { value: 'number', label: 'Number' },
                 { value: 'boolean', label: 'Boolean' },
                 { value: 'variable', label: 'Variable' },
-                { value: 'nil', label: 'Nil' }
+                { value: 'nil', label: 'nil' }
               ]}
               value={nodeData.dataType ?? 'string'}
-              onChange={value => handleChange('dataType', value as VariableDataType)}
+              onChange={value =>
+                handleChange('dataType', value as VariableDataType)
+              }
               allowDeselect={false}
-            />{' '}
+            />
             {nodeData.dataType === 'string' && (
               <ValidatedTextarea
                 field='value'
@@ -1615,7 +1745,7 @@ export default function NodeEditorModal ({
                 minRows={1}
                 icon={<IconAbc size='1rem' stroke={1.5} />}
               />
-            )}{' '}
+            )}
             {nodeData.dataType === 'variable' && (
               <ValidatedTextInput
                 field='value'
@@ -1626,7 +1756,7 @@ export default function NodeEditorModal ({
                 placeholder='sourceVariableName'
                 icon={<IconVariable size='1rem' stroke={1.5} />}
               />
-            )}{' '}
+            )}
             {nodeData.dataType === 'number' && (
               <ValidatedNumberInput
                 field='value'
@@ -1638,7 +1768,7 @@ export default function NodeEditorModal ({
                 icon={<IconHash size='1rem' stroke={1.5} />}
                 allowDecimal={true}
               />
-            )}{' '}
+            )}
             {nodeData.dataType === 'boolean' && (
               <SegmentedControl
                 fullWidth
@@ -1649,19 +1779,19 @@ export default function NodeEditorModal ({
                   { label: 'False', value: 'false' }
                 ]}
               />
-            )}{' '}
+            )}
             {nodeData.dataType === 'nil' && (
               <Alert icon={<IconInfoCircle size='1rem' />} color='gray'>
-                {' '}
-                Value will be set to nil (null).{' '}
+                
+                Value will be set to nil (null).
               </Alert>
-            )}{' '}
+            )}
           </Stack>
         )
       case 'readVariable':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <ValidatedTextInput
               field='variableName'
               nodeData={nodeData}
@@ -1671,7 +1801,7 @@ export default function NodeEditorModal ({
               placeholder='variableToRead'
               required
               icon={<IconDatabaseImport size='1rem' stroke={1.5} />}
-            />{' '}
+            />
             <ValidatedTextarea
               field='defaultValue'
               nodeData={nodeData}
@@ -1683,29 +1813,29 @@ export default function NodeEditorModal ({
               minRows={1}
               description="Literal value used if the variable doesn't exist."
               icon={<IconVariableOff size='1rem' stroke={1.5} />}
-            />{' '}
+            />
             <Alert
               icon={<IconInfoCircle size='1rem' />}
               color='gray'
               variant='outline'
             >
-              {' '}
+              
               This node reads the variable for the simulation; use its value in
               subsequent nodes via the same variable name. No new variable is
-              created here.{' '}
-            </Alert>{' '}
+              created here.
+            </Alert>
           </Stack>
         )
       case 'concatStrings':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <Text fw={500} size='sm' mb={-8}>
-              {' '}
-              String Inputs{' '}
-            </Text>{' '}
+              
+              String Inputs
+            </Text>
             <Group grow align='flex-start'>
-              {' '}
+              
               <VarLiteralPair
                 nodeData={nodeData}
                 onChange={handleChange}
@@ -1719,7 +1849,7 @@ export default function NodeEditorModal ({
                 literalInputType='textarea'
                 required={false}
                 literalProps={{ minRows: 1 }}
-              />{' '}
+              />
               <VarLiteralPair
                 nodeData={nodeData}
                 onChange={handleChange}
@@ -1733,9 +1863,9 @@ export default function NodeEditorModal ({
                 literalInputType='textarea'
                 required={false}
                 literalProps={{ minRows: 1 }}
-              />{' '}
-            </Group>{' '}
-            <Divider label='Output' labelPosition='center' />{' '}
+              />
+            </Group>
+            <Divider label='Output' labelPosition='center' />
             <ValidatedTextInput
               field='resultVariable'
               nodeData={nodeData}
@@ -1745,13 +1875,13 @@ export default function NodeEditorModal ({
               placeholder='concatResult'
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
           </Stack>
         )
       case 'wait':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <VarLiteralPair
               nodeData={nodeData}
               onChange={handleChange}
@@ -1770,27 +1900,27 @@ export default function NodeEditorModal ({
                 placeholder: 'e.g., 1000',
                 icon: <IconClock size='1rem' />
               }}
-            />{' '}
+            />
             <Alert
               icon={<IconInfoCircle size='1rem' />}
               color='gray'
               variant='outline'
             >
-              {' '}
+              
               This simulates `Wait()` in Lua. The execution simulation does not
-              actually pause.{' '}
-            </Alert>{' '}
+              actually pause.
+            </Alert>
           </Stack>
         )
       case 'return':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <Alert icon={<IconAlertCircle size='1rem' />} color='blue'>
-              {' '}
+              
               This node should typically be the last in a Function graph. It
-              defines the value returned when the function is called.{' '}
-            </Alert>{' '}
+              defines the value returned when the function is called.
+            </Alert>
             <VarLiteralPair
               nodeData={nodeData}
               onChange={handleChange}
@@ -1809,13 +1939,13 @@ export default function NodeEditorModal ({
                 minRows: 1,
                 icon: <IconArrowBackUp size='1rem' />
               }}
-            />{' '}
+            />
           </Stack>
         )
       case 'callFunction':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <Select
               label='Function to Call'
               placeholder='Select a function'
@@ -1832,30 +1962,29 @@ export default function NodeEditorModal ({
               }
               error={validationErrors['functionName']}
               leftSection={<IconSubtask size='1rem' stroke={1.5} />}
-            />{' '}
+            />
             <ValidatedTextInput
               field='resultVariable'
               nodeData={nodeData}
               onChange={handleChange}
               errors={validationErrors}
               label='Store Result In Variable'
-              placeholder='functionResult'
-              required
+              placeholder='resultVariable'
               icon={<IconVariable size='1rem' stroke={1.5} />}
               description='The value returned by the function will be stored here.'
-            />{' '}
+            />
             {nodeData.functionName &&
               renderArgumentEditor(
                 `Arguments for ${nodeData.functionName}()`,
                 nodeData,
                 targetFunctionParams
-              )}{' '}
+              )}
             {!nodeData.functionName && (
               <Text c='dimmed' size='sm'>
-                {' '}
-                Select a function to configure arguments.{' '}
+                
+                Select a function to configure arguments.
               </Text>
-            )}{' '}
+            )}
           </Stack>
         )
       case 'ifCondition':
@@ -1865,8 +1994,8 @@ export default function NodeEditorModal ({
       case 'forLoopNumeric':
         return (
           <Stack gap='lg'>
-            {' '}
-            <Divider label='Loop Control' labelPosition='center' />{' '}
+            
+            <Divider label='Loop Control' labelPosition='center' />
             <ValidatedTextInput
               field='controlVariable'
               nodeData={nodeData}
@@ -1877,10 +2006,10 @@ export default function NodeEditorModal ({
               required
               description='e.g., i, index, count (will be local to loop)'
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
-            <Divider label='Loop Range' labelPosition='center' />{' '}
+            />
+            <Divider label='Loop Range' labelPosition='center' />
             <Group grow align='flex-start'>
-              {' '}
+              
               <VarLiteralPair
                 nodeData={nodeData}
                 onChange={handleChange}
@@ -1893,7 +2022,7 @@ export default function NodeEditorModal ({
                 literalInputType='number'
                 required
                 literalProps={{ placeholder: '1', allowDecimal: true }}
-              />{' '}
+              />
               <VarLiteralPair
                 nodeData={nodeData}
                 onChange={handleChange}
@@ -1906,7 +2035,7 @@ export default function NodeEditorModal ({
                 literalInputType='number'
                 required
                 literalProps={{ placeholder: '10', allowDecimal: true }}
-              />{' '}
+              />
               <VarLiteralPair
                 nodeData={nodeData}
                 onChange={handleChange}
@@ -1919,23 +2048,23 @@ export default function NodeEditorModal ({
                 literalInputType='number'
                 required
                 literalProps={{ placeholder: '1', allowDecimal: true }}
-              />{' '}
-            </Group>{' '}
+              />
+            </Group>
           </Stack>
         )
       case 'triggerServerEvent':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <Alert
               icon={<IconWorld size='1rem' />}
               title='Client -> Server'
               color='orange'
               variant='outline'
             >
-              {' '}
-              Sends an event from the client to be handled on the server.{' '}
-            </Alert>{' '}
+              
+              Sends an event from the client to be handled on the server.
+            </Alert>
             <ValidatedTextInput
               field='eventName'
               nodeData={nodeData}
@@ -1945,24 +2074,24 @@ export default function NodeEditorModal ({
               placeholder='myPrefix:myServerEvent'
               required
               icon={<IconServerBolt size='1rem' />}
-            />{' '}
-            {renderArgumentEditor('Arguments to Send', nodeData, [], true)}{' '}
+            />
+            {renderArgumentEditor('Arguments to Send', nodeData, [], true)}
           </Stack>
         )
       case 'triggerClientEvent':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <Alert
               icon={<IconDeviceLaptop size='1rem' />}
               title='Server -> Client'
               color='blue'
               variant='outline'
             >
-              {' '}
+              
               Sends an event from the server to be handled by one or more
-              clients.{' '}
-            </Alert>{' '}
+              clients.
+            </Alert>
             <ValidatedTextInput
               field='eventName'
               nodeData={nodeData}
@@ -1972,7 +2101,7 @@ export default function NodeEditorModal ({
               placeholder='myPrefix:myClientEvent'
               required
               icon={<IconMessageChatbot size='1rem' />}
-            />{' '}
+            />
             <VarLiteralPair
               nodeData={nodeData}
               onChange={handleChange}
@@ -1989,14 +2118,14 @@ export default function NodeEditorModal ({
                 placeholder: '-1 (all), 0 (host), or specific ID(s)',
                 icon: <IconHash size='1rem' />
               }}
-            />{' '}
-            {renderArgumentEditor('Arguments to Send', nodeData, [], true)}{' '}
+            />
+            {renderArgumentEditor('Arguments to Send', nodeData, [], true)}
           </Stack>
         )
       case 'forLoopGeneric':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <ValidatedTextInput
               field='tableVariable'
               nodeData={nodeData}
@@ -2006,7 +2135,7 @@ export default function NodeEditorModal ({
               placeholder='tableVar'
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
             <Select
               label='Iteration Type'
               data={[
@@ -2017,10 +2146,10 @@ export default function NodeEditorModal ({
               onChange={value => handleChange('iterationType', value)}
               allowDeselect={false}
               description='pairs iterates all, ipairs iterates numeric keys 1..n'
-            />{' '}
-            <Divider label='Loop Variables' labelPosition='center' />{' '}
+            />
+            <Divider label='Loop Variables' labelPosition='center' />
             <Group grow>
-              {' '}
+              
               <ValidatedTextInput
                 field='keyVariable'
                 nodeData={nodeData}
@@ -2037,7 +2166,7 @@ export default function NodeEditorModal ({
                 required
                 icon={<IconHash size='1rem' stroke={1.5} />}
                 description='Will be created/updated in loop scope.'
-              />{' '}
+              />
               <ValidatedTextInput
                 field='valueVariable'
                 nodeData={nodeData}
@@ -2048,23 +2177,32 @@ export default function NodeEditorModal ({
                 required
                 icon={<IconVariable size='1rem' stroke={1.5} />}
                 description='Will be created/updated in loop scope.'
-              />{' '}
-            </Group>{' '}
+              />
+            </Group>
           </Stack>
         )
       case 'createTable':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <Alert
               icon={<IconInfoCircle size='1rem' />}
               color='blue'
               variant='outline'
             >
-              {' '}
+              
               Initializes an empty Lua table `{}`. Use 'Set Table Value' or
-              'Insert Into Table' nodes to add data.{' '}
-            </Alert>{' '}
+              'Insert Into Table' nodes to add data.
+            </Alert>
+            <SegmentedControl
+              fullWidth
+              data={[
+                { value: 'global', label: 'Global' },
+                { value: 'local', label: 'Local' }
+              ]}
+              value={nodeData.varType ?? 'local'}
+              onChange={value => handleChange('varType', value)}
+            />
             <ValidatedTextInput
               field='variableName'
               nodeData={nodeData}
@@ -2074,13 +2212,13 @@ export default function NodeEditorModal ({
               placeholder='myNewTable'
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
           </Stack>
         )
       case 'setTableValue':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <ValidatedTextInput
               field='tableVariable'
               nodeData={nodeData}
@@ -2090,15 +2228,15 @@ export default function NodeEditorModal ({
               placeholder='tableVar'
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
             <Paper p='sm' withBorder radius='sm'>
-              {' '}
+              
               <Stack gap='xs'>
-                {' '}
+                
                 <Text fw={500} size='sm'>
-                  {' '}
-                  Key{' '}
-                </Text>{' '}
+                  
+                  Key
+                </Text>
                 <SegmentedControl
                   fullWidth
                   data={[
@@ -2108,7 +2246,7 @@ export default function NodeEditorModal ({
                   ]}
                   value={nodeData.keyType ?? 'literal'}
                   onChange={v => handleChange('keyType', v)}
-                />{' '}
+                />
                 {nodeData.keyType === 'variable' ? (
                   <ValidatedTextInput
                     field='keyValue'
@@ -2144,17 +2282,17 @@ export default function NodeEditorModal ({
                     required
                     icon={<IconAbc size='1rem' stroke={1.5} />}
                   />
-                )}{' '}
-              </Stack>{' '}
-            </Paper>{' '}
+                )}
+              </Stack>
+            </Paper>
             <Paper p='sm' withBorder radius='sm'>
-              {' '}
+              
               <Stack gap='xs'>
-                {' '}
+                
                 <Text fw={500} size='sm'>
-                  {' '}
-                  Value{' '}
-                </Text>{' '}
+                  
+                  Value
+                </Text>
                 <VarLiteralPair
                   nodeData={nodeData}
                   onChange={handleChange}
@@ -2174,15 +2312,15 @@ export default function NodeEditorModal ({
                     description: 'Enter string, number, boolean, or nil.',
                     minRows: 1
                   }}
-                />{' '}
-              </Stack>{' '}
-            </Paper>{' '}
+                />
+              </Stack>
+            </Paper>
           </Stack>
         )
       case 'getTableValue':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <ValidatedTextInput
               field='tableVariable'
               nodeData={nodeData}
@@ -2192,15 +2330,15 @@ export default function NodeEditorModal ({
               placeholder='tableVar'
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
             <Paper p='sm' withBorder radius='sm'>
-              {' '}
+              
               <Stack gap='xs'>
-                {' '}
+                
                 <Text fw={500} size='sm'>
-                  {' '}
-                  Key{' '}
-                </Text>{' '}
+                  
+                  Key
+                </Text>
                 <SegmentedControl
                   fullWidth
                   data={[
@@ -2210,7 +2348,7 @@ export default function NodeEditorModal ({
                   ]}
                   value={nodeData.keyType ?? 'literal'}
                   onChange={v => handleChange('keyType', v)}
-                />{' '}
+                />
                 {nodeData.keyType === 'variable' ? (
                   <ValidatedTextInput
                     field='keyValue'
@@ -2246,10 +2384,10 @@ export default function NodeEditorModal ({
                     required
                     icon={<IconAbc size='1rem' stroke={1.5} />}
                   />
-                )}{' '}
-              </Stack>{' '}
-            </Paper>{' '}
-            <Divider label='Output' labelPosition='center' />{' '}
+                )}
+              </Stack>
+            </Paper>
+            <Divider label='Output' labelPosition='center' />
             <ValidatedTextInput
               field='resultVariable'
               nodeData={nodeData}
@@ -2259,7 +2397,7 @@ export default function NodeEditorModal ({
               placeholder='valueResult'
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
             <ValidatedTextarea
               field='defaultValue'
               nodeData={nodeData}
@@ -2271,13 +2409,13 @@ export default function NodeEditorModal ({
               minRows={1}
               description="Literal value used if the key doesn't exist in the table."
               icon={<IconAbc size='1rem' stroke={1.5} />}
-            />{' '}
+            />
           </Stack>
         )
       case 'callNative':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <ValidatedTextInput
               field='nativeNameOrHash'
               nodeData={nodeData}
@@ -2288,7 +2426,7 @@ export default function NodeEditorModal ({
               required
               icon={<IconTerminal2 size='1rem' stroke={1.5} />}
               description='Enter the exact native name or its hex hash.'
-            />{' '}
+            />
             <ValidatedTextInput
               field='resultVariable'
               nodeData={nodeData}
@@ -2299,29 +2437,24 @@ export default function NodeEditorModal ({
               required={false}
               icon={<IconVariable size='1rem' stroke={1.5} />}
               description="Leave blank if the native doesn't return a value you need."
-            />{' '}
-            {renderArgumentEditor('Arguments to Send', nodeData, [], true)}{' '}
+            />
+            {renderArgumentEditor('Arguments to Send', nodeData, [], true)}
             <Alert
               icon={<IconInfoCircle size='1rem' />}
               color='gray'
               variant='outline'
             >
-              {' '}
+              
               Native calls are only simulated during execution in this tool. The
-              actual call happens in the generated Lua code.{' '}
-            </Alert>{' '}
+              actual call happens in the generated Lua code.
+            </Alert>
           </Stack>
         )
       case 'vector3':
         return (
           <Stack gap='lg'>
-            {' '}
-            <Text fw={500} size='sm'>
-              {' '}
-              Components{' '}
-            </Text>{' '}
-            <Group grow align='flex-start'>
-              {' '}
+            <Text fw={500} size='sm'>Components</Text>
+            <Group grow align='space-between'>
               <VarLiteralPair
                 nodeData={nodeData}
                 onChange={handleChange}
@@ -2329,17 +2462,14 @@ export default function NodeEditorModal ({
                 errors={validationErrors}
                 typeField='useVariableForX'
                 sourceField='xSource'
+                varFieldName='xSource'
+                literalFieldName='xSource'
                 switchLabel='X from Variable'
                 literalInputLabel='X (Literal)'
                 literalInputType='number'
                 required
-                literalProps={{
-                  placeholder: '0.0',
-                  allowDecimal: true,
-                  step: 0.1,
-                  precision: 3
-                }}
-              />{' '}
+                literalProps={{ placeholder: '0.0', allowDecimal: true, step: 0.1, precision: 3 }}
+              />
               <VarLiteralPair
                 nodeData={nodeData}
                 onChange={handleChange}
@@ -2347,17 +2477,14 @@ export default function NodeEditorModal ({
                 errors={validationErrors}
                 typeField='useVariableForY'
                 sourceField='ySource'
+                varFieldName='ySource'     
+                literalFieldName='ySource' 
                 switchLabel='Y from Variable'
                 literalInputLabel='Y (Literal)'
                 literalInputType='number'
                 required
-                literalProps={{
-                  placeholder: '0.0',
-                  allowDecimal: true,
-                  step: 0.1,
-                  precision: 3
-                }}
-              />{' '}
+                literalProps={{ placeholder: '0.0', allowDecimal: true, step: 0.1, precision: 3 }}
+              />
               <VarLiteralPair
                 nodeData={nodeData}
                 onChange={handleChange}
@@ -2365,19 +2492,16 @@ export default function NodeEditorModal ({
                 errors={validationErrors}
                 typeField='useVariableForZ'
                 sourceField='zSource'
+                varFieldName='zSource'
+                literalFieldName='zSource'
                 switchLabel='Z from Variable'
                 literalInputLabel='Z (Literal)'
                 literalInputType='number'
                 required
-                literalProps={{
-                  placeholder: '0.0',
-                  allowDecimal: true,
-                  step: 0.1,
-                  precision: 3
-                }}
-              />{' '}
-            </Group>{' '}
-            <Divider label='Output' labelPosition='center' />{' '}
+                literalProps={{ placeholder: '0.0', allowDecimal: true, step: 0.1, precision: 3 }}
+              />
+            </Group>
+            <Divider label='Output' labelPosition='center' />
             <ValidatedTextInput
               field='resultVariable'
               nodeData={nodeData}
@@ -2387,13 +2511,14 @@ export default function NodeEditorModal ({
               placeholder='vectorResult'
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
           </Stack>
-        )
+        );
+
       case 'json':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <SegmentedControl
               fullWidth
               data={[
@@ -2402,7 +2527,7 @@ export default function NodeEditorModal ({
               ]}
               value={nodeData.jsonOperation ?? 'encode'}
               onChange={value => handleChange('jsonOperation', value)}
-            />{' '}
+            />
             <ValidatedTextInput
               field='inputVariable'
               nodeData={nodeData}
@@ -2416,7 +2541,7 @@ export default function NodeEditorModal ({
               placeholder='inputVar'
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
             <ValidatedTextInput
               field='resultVariable'
               nodeData={nodeData}
@@ -2430,31 +2555,31 @@ export default function NodeEditorModal ({
               placeholder='outputVar'
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
             <Alert
               icon={<IconInfoCircle size='1rem' />}
               color='gray'
               variant='outline'
             >
-              {' '}
+              
               Requires a JSON library (like `json-lua` included in fxserver or
-              `ox_lib`) available in the Lua environment.{' '}
-            </Alert>{' '}
+              `ox_lib`) available in the Lua environment.
+            </Alert>
           </Stack>
         )
       case 'insertIntoTable':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <Alert
               icon={<IconInfoCircle size='1rem' />}
               color='blue'
               variant='outline'
             >
-              {' '}
+              
               Appends a value to the end of a table (array). Simulates
-              `table.insert(tbl, value)`.{' '}
-            </Alert>{' '}
+              `table.insert(tbl, value)`.
+            </Alert>
             <ValidatedTextInput
               field='tableVariable'
               nodeData={nodeData}
@@ -2464,7 +2589,7 @@ export default function NodeEditorModal ({
               placeholder='tableVar'
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
             <VarLiteralPair
               nodeData={nodeData}
               onChange={handleChange}
@@ -2483,22 +2608,22 @@ export default function NodeEditorModal ({
                 description: 'Enter string, number, boolean, or nil.',
                 minRows: 1
               }}
-            />{' '}
+            />
           </Stack>
         )
       case 'getTableLength':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <Alert
               icon={<IconInfoCircle size='1rem' />}
               color='blue'
               variant='outline'
             >
-              {' '}
+              
               Gets the length of a table using the `#` operator. For non-array
-              tables, the result might differ from counting keys manually.{' '}
-            </Alert>{' '}
+              tables, the result might differ from counting keys manually.
+            </Alert>
             <ValidatedTextInput
               field='tableVariable'
               nodeData={nodeData}
@@ -2508,7 +2633,7 @@ export default function NodeEditorModal ({
               placeholder='tableVar'
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
             <ValidatedTextInput
               field='resultVariable'
               nodeData={nodeData}
@@ -2518,13 +2643,13 @@ export default function NodeEditorModal ({
               placeholder='tableLen'
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
           </Stack>
         )
       case 'stringFormat':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <ValidatedTextarea
               field='formatString'
               nodeData={nodeData}
@@ -2537,8 +2662,8 @@ export default function NodeEditorModal ({
               minRows={2}
               icon={<IconQuote size='1rem' stroke={1.5} />}
               description='Use Lua format specifiers like %s (string), %d (integer), %f (float), etc.'
-            />{' '}
-            {renderArgumentEditor('Values to Format', nodeData, [], true)}{' '}
+            />
+            {renderArgumentEditor('Values to Format', nodeData, [], true)}
             <ValidatedTextInput
               field='resultVariable'
               nodeData={nodeData}
@@ -2548,30 +2673,30 @@ export default function NodeEditorModal ({
               placeholder='formattedResult'
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
             <Alert
               icon={<IconInfoCircle size='1rem' />}
               color='gray'
               variant='outline'
             >
-              {' '}
+              
               The execution simulation performs basic substitution. The
-              generated Lua code will use `string.format` correctly.{' '}
-            </Alert>{' '}
+              generated Lua code will use `string.format` correctly.
+            </Alert>
           </Stack>
         )
       case 'stringSplit':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <Alert
               icon={<IconInfoCircle size='1rem' />}
               color='blue'
               variant='outline'
             >
-              {' '}
-              Splits a string into a table of substrings based on the separator.{' '}
-            </Alert>{' '}
+              
+              Splits a string into a table of substrings based on the separator.
+            </Alert>
             <VarLiteralPair
               nodeData={nodeData}
               onChange={handleChange}
@@ -2589,7 +2714,7 @@ export default function NodeEditorModal ({
                 placeholder: 'e.g., apple,banana,cherry',
                 minRows: 1
               }}
-            />{' '}
+            />
             <ValidatedTextInput
               field='separator'
               nodeData={nodeData}
@@ -2599,7 +2724,7 @@ export default function NodeEditorModal ({
               placeholder=','
               icon={<IconCut size='1rem' stroke={1.5} />}
               description='String to split by. Leave empty to split into characters.'
-            />{' '}
+            />
             <ValidatedNumberInput
               field='limit'
               nodeData={nodeData}
@@ -2613,7 +2738,7 @@ export default function NodeEditorModal ({
               step={1}
               allowDecimal={false}
               required={false}
-            />{' '}
+            />
             <ValidatedTextInput
               field='resultVariable'
               nodeData={nodeData}
@@ -2623,7 +2748,7 @@ export default function NodeEditorModal ({
               placeholder='splitTable'
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
           </Stack>
         )
       case 'typeCheck':
@@ -2659,16 +2784,16 @@ export default function NodeEditorModal ({
           )
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <Alert
               icon={<IconInfoCircle size='1rem' />}
               color='blue'
               variant='outline'
             >
-              {' '}
+              
               {actionLabel} a value, similar to Lua's `
-              {nodeData.id.toLowerCase()}()`.{' '}
-            </Alert>{' '}
+              {nodeData.id.toLowerCase()}()`.
+            </Alert>
             <VarLiteralPair
               nodeData={nodeData}
               onChange={handleChange}
@@ -2686,7 +2811,7 @@ export default function NodeEditorModal ({
                 placeholder: 'e.g., true, 10, "text", nil',
                 minRows: 1
               }}
-            />{' '}
+            />
             {isToNumber && (
               <ValidatedNumberInput
                 field='base'
@@ -2703,7 +2828,7 @@ export default function NodeEditorModal ({
                 allowDecimal={false}
                 required={false}
               />
-            )}{' '}
+            )}
             <ValidatedTextInput
               field='resultVariable'
               nodeData={nodeData}
@@ -2713,25 +2838,25 @@ export default function NodeEditorModal ({
               placeholder={resultPlaceholder}
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
             {isToNumber && (
               <Alert
                 icon={<IconAlertCircle size='1rem' />}
                 color='orange'
                 variant='light'
               >
-                {' '}
+                
                 Conversion returns `nil` (null in simulation) if the input
-                cannot be converted with the specified base.{' '}
+                cannot be converted with the specified base.
               </Alert>
-            )}{' '}
+            )}
           </Stack>
         )
       }
       case 'stringSubstring':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <VarLiteralPair
               nodeData={nodeData}
               onChange={handleChange}
@@ -2746,17 +2871,17 @@ export default function NodeEditorModal ({
               literalInputType='textarea'
               required={false}
               literalProps={{ placeholder: 'e.g., Hello World', minRows: 1 }}
-            />{' '}
+            />
             <Paper p='sm' withBorder radius='sm'>
-              {' '}
+              
               <Stack gap='xs'>
-                {' '}
+                
                 <Text fw={500} size='sm'>
-                  {' '}
-                  Indices (1-based){' '}
-                </Text>{' '}
+                  
+                  Indices (1-based)
+                </Text>
                 <Group grow align='flex-start'>
-                  {' '}
+                  
                   <VarLiteralPair
                     nodeData={nodeData}
                     onChange={handleChange}
@@ -2774,7 +2899,7 @@ export default function NodeEditorModal ({
                       step: 1,
                       allowDecimal: false
                     }}
-                  />{' '}
+                  />
                   <VarLiteralPair
                     nodeData={nodeData}
                     onChange={handleChange}
@@ -2793,10 +2918,10 @@ export default function NodeEditorModal ({
                       allowDecimal: false,
                       description: 'Leave empty for end of string.'
                     }}
-                  />{' '}
-                </Group>{' '}
-              </Stack>{' '}
-            </Paper>{' '}
+                  />
+                </Group>
+              </Stack>
+            </Paper>
             <ValidatedTextInput
               field='resultVariable'
               nodeData={nodeData}
@@ -2806,13 +2931,13 @@ export default function NodeEditorModal ({
               placeholder='substringResult'
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
           </Stack>
         )
       case 'stringLength':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <VarLiteralPair
               nodeData={nodeData}
               onChange={handleChange}
@@ -2827,7 +2952,7 @@ export default function NodeEditorModal ({
               literalInputType='textarea'
               required={false}
               literalProps={{ placeholder: 'e.g., Hello World', minRows: 1 }}
-            />{' '}
+            />
             <ValidatedTextInput
               field='resultVariable'
               nodeData={nodeData}
@@ -2837,13 +2962,13 @@ export default function NodeEditorModal ({
               placeholder='stringLengthResult'
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
           </Stack>
         )
       case 'stringFind':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <VarLiteralPair
               nodeData={nodeData}
               onChange={handleChange}
@@ -2861,7 +2986,7 @@ export default function NodeEditorModal ({
                 placeholder: 'e.g., The quick brown fox',
                 minRows: 1
               }}
-            />{' '}
+            />
             <VarLiteralPair
               nodeData={nodeData}
               onChange={handleChange}
@@ -2876,9 +3001,9 @@ export default function NodeEditorModal ({
               literalInputType='text'
               required
               literalProps={{ placeholder: 'e.g., brown' }}
-            />{' '}
+            />
             <Group grow align='flex-start'>
-              {' '}
+              
               <VarLiteralPair
                 nodeData={nodeData}
                 onChange={handleChange}
@@ -2896,7 +3021,7 @@ export default function NodeEditorModal ({
                   step: 1,
                   allowDecimal: false
                 }}
-              />{' '}
+              />
               <Switch
                 label='Plain Find (Disable Patterns)'
                 checked={nodeData.plainFind ?? false}
@@ -2904,14 +3029,14 @@ export default function NodeEditorModal ({
                   handleChange('plainFind', e.currentTarget.checked)
                 }
                 mt='xl'
-              />{' '}
-            </Group>{' '}
+              />
+            </Group>
             <Divider
               label='Output Variables (Optional)'
               labelPosition='center'
-            />{' '}
+            />
             <Group grow>
-              {' '}
+              
               <ValidatedTextInput
                 field='resultStartIndexVar'
                 nodeData={nodeData}
@@ -2922,7 +3047,7 @@ export default function NodeEditorModal ({
                 required={false}
                 icon={<IconVariable size='1rem' stroke={1.5} />}
                 description='Stores start position (1-based) if found, else nil.'
-              />{' '}
+              />
               <ValidatedTextInput
                 field='resultEndIndexVar'
                 nodeData={nodeData}
@@ -2933,14 +3058,14 @@ export default function NodeEditorModal ({
                 required={false}
                 icon={<IconVariable size='1rem' stroke={1.5} />}
                 description='Stores end position if found, else nil.'
-              />{' '}
-            </Group>{' '}
+              />
+            </Group>
           </Stack>
         )
       case 'stringReplace':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <VarLiteralPair
               nodeData={nodeData}
               onChange={handleChange}
@@ -2958,7 +3083,7 @@ export default function NodeEditorModal ({
                 placeholder: 'e.g., Hello world, world!',
                 minRows: 1
               }}
-            />{' '}
+            />
             <VarLiteralPair
               nodeData={nodeData}
               onChange={handleChange}
@@ -2973,7 +3098,7 @@ export default function NodeEditorModal ({
               literalInputType='text'
               required
               literalProps={{ placeholder: 'world' }}
-            />{' '}
+            />
             <VarLiteralPair
               nodeData={nodeData}
               onChange={handleChange}
@@ -2988,9 +3113,9 @@ export default function NodeEditorModal ({
               literalInputType='text'
               required={false}
               literalProps={{ placeholder: 'planet' }}
-            />{' '}
+            />
             <Group grow>
-              {' '}
+              
               <VarLiteralPair
                 nodeData={nodeData}
                 onChange={handleChange}
@@ -3008,9 +3133,9 @@ export default function NodeEditorModal ({
                   step: 1,
                   allowDecimal: false
                 }}
-              />{' '}
-            </Group>{' '}
-            <Divider label='Output Variables' labelPosition='center' />{' '}
+              />
+            </Group>
+            <Divider label='Output Variables' labelPosition='center' />
             <ValidatedTextInput
               field='resultStringVariable'
               nodeData={nodeData}
@@ -3020,7 +3145,7 @@ export default function NodeEditorModal ({
               placeholder='replacedString'
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
             <ValidatedTextInput
               field='resultCountVariable'
               nodeData={nodeData}
@@ -3030,13 +3155,13 @@ export default function NodeEditorModal ({
               placeholder='replaceCount'
               required={false}
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
           </Stack>
         )
       case 'stringCase':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <VarLiteralPair
               nodeData={nodeData}
               onChange={handleChange}
@@ -3051,7 +3176,7 @@ export default function NodeEditorModal ({
               literalInputType='textarea'
               required={false}
               literalProps={{ placeholder: 'e.g., HeLLo WoRLd', minRows: 1 }}
-            />{' '}
+            />
             <SegmentedControl
               fullWidth
               data={[
@@ -3060,7 +3185,7 @@ export default function NodeEditorModal ({
               ]}
               value={nodeData.caseType ?? 'lower'}
               onChange={value => handleChange('caseType', value)}
-            />{' '}
+            />
             <ValidatedTextInput
               field='resultVariable'
               nodeData={nodeData}
@@ -3070,7 +3195,7 @@ export default function NodeEditorModal ({
               placeholder='casedString'
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
           </Stack>
         )
       case 'mathAdvanced': {
@@ -3088,7 +3213,7 @@ export default function NodeEditorModal ({
         const needsVal2 = ['pow', 'min', 'max', 'random'].includes(opType)
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <Select
               label='Math Function'
               data={[
@@ -3105,9 +3230,9 @@ export default function NodeEditorModal ({
               onChange={value => handleChange('mathOperationType', value)}
               allowDeselect={false}
               leftSection={<IconCalculator size='1rem' />}
-            />{' '}
+            />
             <Group grow align='flex-start'>
-              {' '}
+              
               {needsVal1 && (
                 <VarLiteralPair
                   nodeData={nodeData}
@@ -3138,7 +3263,7 @@ export default function NodeEditorModal ({
                     placeholder: opType === 'random' ? '1' : '0'
                   }}
                 />
-              )}{' '}
+              )}
               {needsVal2 && (
                 <VarLiteralPair
                   nodeData={nodeData}
@@ -3169,24 +3294,24 @@ export default function NodeEditorModal ({
                     placeholder: opType === 'random' ? '100' : '0'
                   }}
                 />
-              )}{' '}
-              {needsVal1 && !needsVal2 && <Box style={{ flex: 1 }} />}{' '}
-            </Group>{' '}
+              )}
+              {needsVal1 && !needsVal2 && <Box style={{ flex: 1 }} />}
+            </Group>
             <Alert
               icon={<IconInfoCircle size='1rem' />}
               color='gray'
               variant='outline'
               mt={needsVal1 || needsVal2 ? 0 : 'md'}
             >
-              {' '}
+              
               {opType === 'random'
                 ? 'With no args, returns float 0-1. With Min/Max, returns integer in range [Min, Max].'
                 : opType === 'pow'
                 ? 'Calculates Base to the power of Exponent.'
                 : opType === 'min' || opType === 'max'
                 ? 'Returns the minimum/maximum of the two values.'
-                : 'Applies the selected math function.'}{' '}
-            </Alert>{' '}
+                : 'Applies the selected math function.'}
+            </Alert>
             <ValidatedTextInput
               field='resultVariable'
               nodeData={nodeData}
@@ -3196,14 +3321,14 @@ export default function NodeEditorModal ({
               placeholder='mathAdvResult'
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
           </Stack>
         )
       }
       case 'tableRemove':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <ValidatedTextInput
               field='tableVariable'
               nodeData={nodeData}
@@ -3214,7 +3339,7 @@ export default function NodeEditorModal ({
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
               description='Must be an array (list) for predictable behavior.'
-            />{' '}
+            />
             <VarLiteralPair
               nodeData={nodeData}
               onChange={handleChange}
@@ -3233,7 +3358,7 @@ export default function NodeEditorModal ({
                 allowDecimal: false,
                 description: 'Leave empty to remove the last element.'
               }}
-            />{' '}
+            />
             <ValidatedTextInput
               field='resultRemovedValueVar'
               nodeData={nodeData}
@@ -3243,22 +3368,22 @@ export default function NodeEditorModal ({
               placeholder='removedValue'
               required={false}
               icon={<IconVariable size='1rem' stroke={1.5} />}
-            />{' '}
+            />
             <Alert
               icon={<IconInfoCircle size='1rem' />}
               color='gray'
               variant='outline'
             >
-              {' '}
+              
               Simulates `table.remove`. Modifies the table directly in the
-              simulation.{' '}
-            </Alert>{' '}
+              simulation.
+            </Alert>
           </Stack>
         )
       case 'tableSort':
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <ValidatedTextInput
               field='tableVariable'
               nodeData={nodeData}
@@ -3269,7 +3394,7 @@ export default function NodeEditorModal ({
               required
               icon={<IconVariable size='1rem' stroke={1.5} />}
               description='The table will be sorted in-place.'
-            />{' '}
+            />
             <SegmentedControl
               fullWidth
               data={[
@@ -3278,7 +3403,7 @@ export default function NodeEditorModal ({
               ]}
               value={nodeData.sortFunctionType ?? 'none'}
               onChange={value => handleChange('sortFunctionType', value)}
-            />{' '}
+            />
             {nodeData.sortFunctionType === 'customVariable' && (
               <ValidatedTextInput
                 field='sortFunctionVariable'
@@ -3291,16 +3416,16 @@ export default function NodeEditorModal ({
                 icon={<IconVariable size='1rem' stroke={1.5} />}
                 description='The variable must hold a function `function(a, b) return a < b end`.'
               />
-            )}{' '}
+            )}
             <Alert
               icon={<IconInfoCircle size='1rem' />}
               color='gray'
               variant='outline'
             >
-              {' '}
+              
               Simulates `table.sort`. Modifies the table directly in the
-              simulation. Custom sort functions are not executed in simulation.{' '}
-            </Alert>{' '}
+              simulation. Custom sort functions are not executed in simulation.
+            </Alert>
           </Stack>
         )
 
@@ -3539,16 +3664,16 @@ export default function NodeEditorModal ({
       default:
         return (
           <Stack gap='lg'>
-            {' '}
+            
             <Alert
               icon={<IconSettings size='1rem' />}
               title='Generic Editor'
               color='gray'
             >
-              {' '}
+              
               This node type (`{nodeData.id}`) doesn't have a specific editor
-              configured yet. You can edit the basic label and description.{' '}
-            </Alert>{' '}
+              configured yet. You can edit the basic label and description.
+            </Alert>
             <ValidatedTextInput
               field='label'
               nodeData={nodeData}
@@ -3556,7 +3681,7 @@ export default function NodeEditorModal ({
               errors={validationErrors}
               label='Node Label (Optional)'
               placeholder={nodeInfo.node.label}
-            />{' '}
+            />
             <ValidatedTextarea
               field='description'
               nodeData={nodeData}
@@ -3569,7 +3694,7 @@ export default function NodeEditorModal ({
               autosize
               minRows={1}
               maxRows={3}
-            />{' '}
+            />
           </Stack>
         )
     }
@@ -3747,7 +3872,7 @@ export default function NodeEditorModal ({
             </Button>
           </Group>
         )}
-        <Paper 
+        <Paper
           p='xs'
           style={{
             border:
@@ -3757,7 +3882,11 @@ export default function NodeEditorModal ({
             borderRadius: 'var(--mantine-radius-sm)'
           }}
         >
-          <ScrollArea mah={200} type='auto' style={{ overflowY: 'auto', maxHeight: '200px' }}>
+          <ScrollArea
+            mah={200}
+            type='auto'
+            style={{ overflowY: 'auto', maxHeight: '200px' }}
+          >
             <Stack gap='xs'>
               {args.length === 0 && !isCallFunction && (
                 <Text size='xs' c='dimmed' ta='center' p='xs'>
@@ -3787,8 +3916,8 @@ export default function NodeEditorModal ({
                           {argLabel}
                           {error ? (
                             <Text span c='red' inherit>
-                              {' '}
-                              *{' '}
+                              
+                              *
                             </Text>
                           ) : (
                             ''
@@ -3798,42 +3927,77 @@ export default function NodeEditorModal ({
                           <Select
                             data={[
                               { value: 'literal', label: 'Literal' },
-                              { value: 'variable', label: 'Variable' }
+                              { value: 'number', label: 'Number' },
+                              { value: 'boolean', label: 'Boolean' },
+                              { value: 'variable', label: 'Variable' },
+                              { value: 'nil', label: 'nil' },
                             ]}
                             value={arg.type}
-                            onChange={(newValue: string | null, _option: ComboboxItem) => {
-                              if (newValue === 'literal' || newValue === 'variable') {
-                                handleArgChange(index, 'type', newValue);
+                            onChange={(
+                              newValue: string | null,
+                              _option: ComboboxItem
+                            ) => {
+                              if ( newValue && (newValue === 'literal' || newValue === 'variable'|| newValue === 'number'|| newValue === 'boolean'|| newValue === 'nil')) {
+                                handleArgChange(index, 'type', newValue as ArgumentSource['type'])
                               }
                             }}
                             size='xs'
                             allowDeselect={false}
                           />
-                          <TextInput
-                            placeholder={
-                              arg.type === 'literal'
-                                ? 'Literal Value'
-                                : 'Variable Name'
-                            }
-                            value={arg.value}
-                            onChange={e =>
-                              handleArgChange(
-                                index,
-                                'value',
-                                e.currentTarget.value
-                              )
-                            }
-                            size='xs'
-                            required
-                            error={error}
-                            leftSection={
-                              arg.type === 'variable' ? (
-                                <IconVariable size='1rem' />
-                              ) : (
-                                <IconAbc size='1rem' />
-                              )
-                            }
-                          />
+                          {arg.type === 'literal' && (
+                              <TextInput
+                                placeholder="Literal Value (string)"
+                                value={typeof arg.value === 'string' ? arg.value : ''} // Ensure string
+                                onChange={e => handleArgChange(index, 'value', e.currentTarget.value)}
+                                size="xs"
+                                error={error}
+                                leftSection={<IconQuote size="1rem" />}
+                              />
+                          )}
+                          {arg.type === 'number' && (
+                              <NumberInput
+                                placeholder="Number Value"
+                                value={typeof arg.value === 'number' ? arg.value : 0}
+                                onChange={numValue => handleArgChange(index, 'value', numValue ?? 0)}
+                                size="xs"
+                                error={error}
+                                allowDecimal={true}
+                                leftSection={<IconHash size="1rem" />}
+                              />
+                          )}
+                          {arg.type === 'boolean' && (
+                              <SegmentedControl
+                                fullWidth
+                                size="xs"
+                                value={String(arg.value ?? false)}
+                                onChange={valStr => handleArgChange(index, 'value', valStr === 'true')}
+                                data={[
+                                  { label: 'True', value: 'true' },
+                                  { label: 'False', value: 'false' },
+                                ]}
+                              />
+                          )}
+                          {arg.type === 'variable' && (
+                            <TextInput
+                                placeholder="Variable Name"
+                                value={typeof arg.value === 'string' ? arg.value : ''} // Ensure string
+                                onChange={e => handleArgChange(index, 'value', e.currentTarget.value)}
+                                size="xs"
+                                required
+                                error={error}
+                                leftSection={<IconVariable size="1rem" />}
+                              />
+                          )}
+                          {arg.type === 'nil' && (
+                            <TextInput
+                                placeholder="nil"
+                                value="nil" // Display "nil"
+                                size="xs"
+                                disabled
+                                error={error}
+                                leftSection={<IconVariableOff size="1rem" />}
+                            />
+                          )}
                         </Group>
                       </Stack>
                       {allowAddRemove && (
@@ -3855,7 +4019,6 @@ export default function NodeEditorModal ({
                       )}
                     </Group>
                   </Paper>
-                  
                 )
               })}
             </Stack>
@@ -3871,7 +4034,7 @@ export default function NodeEditorModal ({
       onClose={onClose}
       title={
         <Group gap='xs'>
-          {' '}
+          
           {nodeData.leftSection &&
           React.isValidElement(nodeData.leftSection) ? (
             React.cloneElement(
@@ -3880,15 +4043,15 @@ export default function NodeEditorModal ({
             )
           ) : (
             <IconSettings size={20} />
-          )}{' '}
+          )}
           <Text fw={600}>
-            {' '}
-            Edit Node:{' '}
+            
+            Edit Node:
             <Text span c='blue' inherit>
-              {' '}
-              {nodeData.label || nodeData.id}{' '}
-            </Text>{' '}
-          </Text>{' '}
+              
+              {nodeData.label || nodeData.id}
+            </Text>
+          </Text>
         </Group>
       }
       size='xl'
@@ -3935,19 +4098,18 @@ export default function NodeEditorModal ({
         style={{ borderTop: '1px solid var(--mantine-color-dark-4)' }}
       >
         <Button variant='default' onClick={onClose}>
-          {' '}
-          Cancel{' '}
+          
+          Cancel
         </Button>
         <Button
           onClick={handleSave}
           disabled={Object.keys(validationErrors).length > 0}
           leftSection={<IconSettings size='1rem' />}
         >
-          {' '}
-          Save Changes{' '}
+          
+          Save Changes
         </Button>
       </Group>
     </Modal>
   )
 }
-

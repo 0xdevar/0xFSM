@@ -185,7 +185,7 @@ export default function FunctionSettingsModal ({
       onClose={onClose}
       title={
         <Text fw={600}>
-          Edit Settings for:{' '}
+          Edit Settings for:
           <Text span c='blue' inherit>
             {functionName}
           </Text>
@@ -226,7 +226,7 @@ export default function FunctionSettingsModal ({
             )}
             {parameters.map((param, index) => (
               <Group key={param.id} wrap='nowrap' gap='xs'>
-                {' '}
+                
                 <TextInput
                   placeholder={`Parameter ${index + 1} Name`}
                   value={param.name}

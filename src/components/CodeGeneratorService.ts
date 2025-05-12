@@ -1079,7 +1079,7 @@ export class CodeGeneratorService {
   ): string => {
     const funcName = node.functionName
     if (!funcName) return '-- ERROR: No function name specified.'
-    const resultVar = node.resultVariable || 'funcResult'
+    const resultVar = node.resultVariable || ''
     const argsStr = (node.argumentSources || [])
       .map(arg =>
         arg.type === 'variable'
@@ -1087,11 +1087,15 @@ export class CodeGeneratorService {
           : this.formatLiteralForLua(arg.value)
       )
       .join(', ')
-    const prefix =
-      isInsideBlock && !declaredVariables.has(resultVar) ? 'local ' : ''
     if (isInsideBlock && !declaredVariables.has(resultVar))
       declaredVariables.add(resultVar)
-    return `${prefix}${resultVar} = ${funcName}(${argsStr})`
+    if (resultVar === "") {
+      return `${funcName}(${argsStr})`
+    }else{
+      return `local ${resultVar} = ${funcName}(${argsStr})`
+    }
+    
+
   }
   private static generateIfConditionCode = (node: NodeDefinition): string => {
     let lhs: string
@@ -1256,10 +1260,10 @@ export class CodeGeneratorService {
     const varName = node.variableName?.trim()
     if (!varName || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(varName))
       return `-- ERROR: Invalid variable name: ${varName}`
-    const prefix =
-      isInsideBlock && !declaredVariables.has(varName) ? 'local ' : ''
-    if (isInsideBlock && !declaredVariables.has(varName))
-      declaredVariables.add(varName)
+    let prefix = "local "
+    if(node.varType == 'global'){
+      prefix = ""
+    }
     return `${prefix}${varName} = {}`
   }
   private static generateSetTableValueCode = (node: NodeDefinition): string => {

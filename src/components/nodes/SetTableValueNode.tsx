@@ -19,6 +19,7 @@ export const SetTableValueNode: NodeDefinition = {
   keyValue: 'myKey', 
   valueType: 'literal', 
   valueSource: '', 
+  varType: 'local', 
 
   execute: function(context: ExecutionContext) {
     const tableVarName = this.tableVariable;

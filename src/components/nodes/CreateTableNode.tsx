@@ -11,8 +11,9 @@ export const CreateTableNode: NodeDefinition = {
   description: 'Initializes an empty Lua table (like {}).',
   category: 'Data',
   leftSection: <IconTablePlus size={40} />,
-  allowedGraphTypes: ['file', 'function', 'event'],
   
+  allowedGraphTypes: ['file', 'function', 'event'],
+  varType: 'local', 
   variableName: 'newTable',
 
   execute: function(context: ExecutionContext) {

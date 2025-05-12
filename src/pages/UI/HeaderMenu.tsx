@@ -73,22 +73,20 @@ export function HeaderMenu ({
               )
             }
           }
-          // Add handlers for other actions if needed
         }
 
         return (
           
           <Menu.Item
             key={item.id}
-            leftSection={<item.icon size={14} stroke={1.5} />} // Render icon
-            onClick={handleItemClick} // Use the specific handler
+            leftSection={<item.icon size={14} stroke={1.5} />}
+            onClick={handleItemClick}
           >
             {item.label}
           </Menu.Item>
         )
       })
 
-      // --- Render the Dropdown Menu Target (e.g., "File") ---
       return (
         <Menu
           key={link.label}
@@ -99,13 +97,12 @@ export function HeaderMenu ({
         >
           <Menu.Target>
             <a
-              href={link.link} // Use link for accessibility if applicable
+              href={link.link} 
               className={classes.link}
-              onClick={event => event.preventDefault()} // Prevent default link behavior
+              onClick={event => event.preventDefault()} 
             >
               <Center inline>
-                {' '}
-                {/* Use Center for vertical alignment */}
+                
                 <span className={classes.linkLabel}>{link.label}</span>
                 <IconChevronDown
                   size={14}
@@ -116,15 +113,13 @@ export function HeaderMenu ({
               </Center>
             </a>
           </Menu.Target>
-          {/* Render the dropdown content */}
           <Menu.Dropdown>{actionItems}</Menu.Dropdown>
         </Menu>
       )
     }
 
-    // Add rendering logic for nested menus (link.links) if needed in the future
 
-    return null // Fallback for unhandled link types
+    return null 
   })
 
   // --- Header Structure ---
@@ -132,15 +127,15 @@ export function HeaderMenu ({
     <header className={classes.header}>
       <Container size='lg'>
         
-        {' '}
+        
         <div className={classes.inner}>
-          {' '}
+          
           <Group align='center' gap='xs'>
             <Text c='blue' fw={700} size='xl'>
               0xFSM
             </Text>
             <Code fw={700}>v1.0.0</Code>
-            <Button variant='gradient' gradient={{ from: 'pink', to: 'green' }} onClick={() => window.open('https://ko-fi.com/ahmedbero', '_blank')} leftSection={<IconCoffee size={16} stroke={1.5} />} visibleFrom='sm' >
+            <Button variant='gradient' gradient={{ from: 'pink', to: 'green' }} size="xs" onClick={() => window.open('https://ko-fi.com/ahmedbero', '_blank')} leftSection={<IconCoffee size={16} stroke={1.5} />} visibleFrom='sm' >
               Support Me
             </Button>
           </Group>

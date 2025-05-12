@@ -12,8 +12,8 @@ export interface BaseNodeDefinition {
 }
 
 export interface ArgumentSource {
-  type: 'variable' | 'literal';
-  value: string; 
+  type: 'variable' | 'literal'| 'number'| 'boolean'| 'nil';
+  value: string | number | boolean | null;
 }
 
 export interface NodeExecutionProps {
